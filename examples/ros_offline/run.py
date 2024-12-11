@@ -12,6 +12,9 @@ import polars as pl
 
 import flowcean.cli
 from flowcean.environments.rosbag import RosbagLoader
+from flowcean.transforms.particle_cloud_transforms import (
+    center_of_gravity_maximum_distance,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +62,12 @@ def main() -> None:
             data.write_json(file="cached_ros_data.json")
             print("Cache created")
     print(f"original data: {data}")
+    particle_cloud = data["/particle_cloud"]
+    print(f"particle_cloud: {particle_cloud}")
 
+
+if __name__ == "__main__":
+    main()
 
 if __name__ == "__main__":
     main()
