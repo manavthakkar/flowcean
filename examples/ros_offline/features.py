@@ -310,7 +310,7 @@ def extract_features_from_message(list_of_particles):
     # Feature 1
     max_distance, furthest_particle = cog_max_dist(list_of_particles)
     features['cog_max_distance'] = max_distance
-    features['cog_max_distance_particle'] = furthest_particle
+    #features['cog_max_distance_particle'] = furthest_particle
 
     # Feature 2
     features['cog_mean'] = calculate_cog_mean(list_of_particles)
@@ -327,7 +327,7 @@ def extract_features_from_message(list_of_particles):
     # Feature 6
     min_distance, closest_particle = cog_min_dist(list_of_particles)
     features['cog_min_distance'] = min_distance
-    features['cog_min_distance_particle'] = closest_particle
+    #features['cog_min_distance_particle'] = closest_particle
 
     # Feature 7
     features['cog_standard_deviation'] = calculate_cog_standard_deviation(list_of_particles)
@@ -336,7 +336,7 @@ def extract_features_from_message(list_of_particles):
     points = [(particle['pose']['position']['x'], particle['pose']['position']['y']) for particle in list_of_particles]
     circle = smallest_enclosing_circle(points)
     features['circle_radius'] = circle[1]
-    features['circle_center'] = circle[0]
+    #features['circle_center'] = circle[0]
 
     # Feature 9
     features['circle_mean'] = circle_mean(list_of_particles)
