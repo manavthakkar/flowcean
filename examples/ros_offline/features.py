@@ -294,6 +294,70 @@ def circle_std_deviation(list_of_particles):
     std_deviation = math.sqrt(variance)
     return std_deviation
 
+# Extract all features
+def extract_features_from_message(list_of_particles):
+    """
+    Extracts all features from a list of particles.
+
+    Parameters:
+    list_of_particles (list): List of dictionaries representing particles.
+
+    Returns:
+    dict: A dictionary containing all extracted features.
+    """
+    features = {}
+
+    # Feature 1
+    max_distance, furthest_particle = cog_max_dist(list_of_particles)
+    features['cog_max_distance'] = max_distance
+    features['cog_max_distance_particle'] = furthest_particle
+
+    # Feature 2
+    features['cog_mean'] = calculate_cog_mean(list_of_particles)
+
+    # Feature 3
+    features['cog_mean_absolute_deviation'] = calculate_cog_mean_absolute_deviation(list_of_particles)
+
+    # Feature 4
+    features['cog_median'] = calculate_cog_median(list_of_particles)
+
+    # Feature 5
+    features['cog_median_absolute_deviation'] = calculate_cog_median_absolute_deviation(list_of_particles)
+
+    # Feature 6
+    min_distance, closest_particle = cog_min_dist(list_of_particles)
+    features['cog_min_distance'] = min_distance
+    features['cog_min_distance_particle'] = closest_particle
+
+    # Feature 7
+    features['cog_standard_deviation'] = calculate_cog_standard_deviation(list_of_particles)
+
+    # Feature 8
+    points = [(particle['pose']['position']['x'], particle['pose']['position']['y']) for particle in list_of_particles]
+    circle = smallest_enclosing_circle(points)
+    features['circle_radius'] = circle[1]
+    features['circle_center'] = circle[0]
+
+    # Feature 9
+    features['circle_mean'] = circle_mean(list_of_particles)
+
+    # Feature 10
+    features['circle_mean_absolute_deviation'] = circle_mean_absolute_deviation(list_of_particles)
+
+    # Feature 11
+    features['circle_median'] = circle_median(list_of_particles)
+
+    # Feature 12
+    features['circle_median_absolute_deviation'] = circle_median_absolute_deviation(list_of_particles)
+
+    # Feature 13
+    features['circle_min_distance'] = circle_min_dist(list_of_particles)
+
+    # Feature 14
+    features['circle_standard_deviation'] = circle_std_deviation(list_of_particles)
+
+    return features
+
 ############### Helper Functions ################
 
 def calculate_center_of_gravity(list_of_particles):
@@ -387,22 +451,6 @@ if __name__ == "__main__":
         {'pose': {'position': {'x': 2.12472141189225, 'y': 1.5361849999975508, 'z': 0.0, '__msgtype__': 'geometry_msgs/msg/Point'}, 'orientation': {'x': 0.0, 'y': 0.0, 'z': -0.4347883702383812, 'w': 0.900532660765534, '__msgtype__': 'geometry_msgs/msg/Quaternion'}, '__msgtype__': 'geometry_msgs/msg/Pose'}, 'weight': 0.0005980861244019139, '__msgtype__': 'nav2_msgs/msg/Particle'}
     ]
 
-    # Extract (x, y) positions
-    points = [(particle['pose']['position']['x'], particle['pose']['position']['y']) for particle in list_of_particles]
-    circle = smallest_enclosing_circle(points)
-
-    # Calculate features
-    print("Feature 1 - COG Max Distance:", cog_max_dist(list_of_particles)[0], " to the particle:", cog_max_dist(list_of_particles)[1])
-    print("Feature 2 - COG Mean:", calculate_cog_mean(list_of_particles))
-    print("Feature 3 - COG Mean Absolute Deviation:", calculate_cog_mean_absolute_deviation(list_of_particles))
-    print("Feature 4 - COG Median:", calculate_cog_median(list_of_particles))
-    print("Feature 5 - COG Median Absolute Deviation:", calculate_cog_median_absolute_deviation(list_of_particles))
-    print("Feature 6 - COG Min Distance:", cog_min_dist(list_of_particles)[0], "to the particle:", cog_min_dist(list_of_particles)[1])
-    print("Feature 7 - COG Standard Deviation:", calculate_cog_standard_deviation(list_of_particles))
-    print("Feature 8 - Smallest Enclosing Circle Radius:", circle[1], "at Center:", circle[0])
-    print("Feature 9 - Circle Mean:", circle_mean(list_of_particles))
-    print("Feature 10 - Circle Mean Absolute Deviation:", circle_mean_absolute_deviation(list_of_particles))
-    print("Feature 11 - Circle Median:", circle_median(list_of_particles))
-    print("Feature 12 - Circle Median Absolute Deviation:", circle_median_absolute_deviation(list_of_particles))
-    print("Feature 13 - Circle Min Distance:", circle_min_dist(list_of_particles))
-    print("Feature 14 - Circle Standard Deviation:", circle_std_deviation(list_of_particles))
+    # Extract all features
+    features = extract_features_from_message(list_of_particles)
+    print(features)
