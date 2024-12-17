@@ -15,7 +15,7 @@ number_of_messages = len(particle_cloud)
 
 all_features = []  # This will store a dictionary of features per message
 
-for i in range(number_of_messages):        # change the range for testing
+for i in range(3):        # change the range for testing
     # Extract the i-th message dictionary
     message_dictionary = particle_cloud[i]
 
@@ -33,7 +33,7 @@ for i in range(number_of_messages):        # change the range for testing
     # Append the features to the list
     all_features.append(features)
 
-print(f"Features extracted from all messages are: \n{all_features}")
+# print(f"Features extracted from all messages are: \n{all_features}")
 
 features_df = pl.DataFrame(all_features)
 

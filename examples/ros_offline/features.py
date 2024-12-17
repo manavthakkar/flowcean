@@ -35,24 +35,35 @@ def cog_max_dist(list_of_particles):
     return max_distance, furthest_particle
 
 # Feature 2
-def calculate_cog_mean(list_of_particles):
+def calculate_cog_mean_dist(list_of_particles):
     """
-    Calculates the mean position (center of gravity mean) over all particles.
+    Calculates the mean distance of all particles from the center of gravity (mean position).
 
     Parameters:
     list_of_particles (list): List of dictionaries representing particles.
-
+    
     Returns:
-    dict: A dictionary with the x and y coordinates of the mean position.
+    float: The mean distance of the particles from the center of gravity.
     """
     num_particles = len(list_of_particles)
     if num_particles == 0:
-        return {'x': 0, 'y': 0}  # Default to origin if no particles
+        return 0.0  # If there are no particles, return 0.0
 
-    mean_x = sum(particle['pose']['position']['x'] for particle in list_of_particles) / num_particles
-    mean_y = sum(particle['pose']['position']['y'] for particle in list_of_particles) / num_particles
+    # First, calculate the center of gravity (mean position)
+    cog = calculate_cog_mean(list_of_particles)
+    cog_x, cog_y = cog['x'], cog['y']
 
-    return {'x': mean_x, 'y': mean_y}
+    # Calculate distances of each particle from the COG
+    distances = []
+    for particle in list_of_particles:
+        px = particle['pose']['position']['x']
+        py = particle['pose']['position']['y']
+        dist = math.sqrt((px - cog_x)**2 + (py - cog_y)**2)
+        distances.append(dist)
+
+    # Compute the mean distance
+    mean_dist = sum(distances) / num_particles
+    return mean_dist
 
 # Feature 3
 def calculate_cog_mean_absolute_deviation(list_of_particles):
@@ -313,7 +324,7 @@ def extract_features_from_message(list_of_particles):
     #features['cog_max_distance_particle'] = furthest_particle
 
     # Feature 2
-    features['cog_mean'] = calculate_cog_mean(list_of_particles)
+    features['cog_mean_dist'] = calculate_cog_mean_dist(list_of_particles)
 
     # Feature 3
     features['cog_mean_absolute_deviation'] = calculate_cog_mean_absolute_deviation(list_of_particles)
@@ -378,6 +389,25 @@ def calculate_center_of_gravity(list_of_particles):
     cog_y = sum(particle['pose']['position']['y'] * particle['weight'] for particle in list_of_particles) / total_weight
 
     return {'x': cog_x, 'y': cog_y}
+
+def calculate_cog_mean(list_of_particles):
+    """
+    Calculates the mean position (center of gravity mean) over all particles.
+
+    Parameters:
+    list_of_particles (list): List of dictionaries representing particles.
+
+    Returns:
+    dict: A dictionary with the x and y coordinates of the mean position.
+    """
+    num_particles = len(list_of_particles)
+    if num_particles == 0:
+        return {'x': 0, 'y': 0}  # Default to origin if no particles
+
+    mean_x = sum(particle['pose']['position']['x'] for particle in list_of_particles) / num_particles
+    mean_y = sum(particle['pose']['position']['y'] for particle in list_of_particles) / num_particles
+
+    return {'x': mean_x, 'y': mean_y}
 
 def welzl(points, boundary=None):
     """Recursive Welzl's algorithm to find the minimum enclosing circle."""

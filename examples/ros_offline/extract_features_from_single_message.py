@@ -14,7 +14,7 @@ print(f"Number of messages in the particle cloud are {len(particle_cloud)}") # n
 
 print(f"Type of particle cloud is {type(particle_cloud)}")
 
-message_number = 0 
+message_number = 2 # message number to extract features from 
 
 message_dictionary = particle_cloud[message_number] # dictionary of two keys: "time" and "value" (one message) 
 
