@@ -20,7 +20,7 @@ for i in range(number_of_messages):
     particles_dict = message_dictionary["value"]
     list_of_particles = particles_dict["particles"]
 
-    features = extract_features_from_message(list_of_particles)
+    features = extract_features_from_message(list_of_particles, eps=0.3, min_samples=5)
     features["time"] = time
     all_features.append(features)
 

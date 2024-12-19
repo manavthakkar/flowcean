@@ -2,6 +2,7 @@ import math
 import random
 
 import numpy as np
+from sklearn.cluster import DBSCAN
 
 ################# Features #################
 
@@ -355,9 +356,74 @@ def circle_std_deviation(list_of_particles: list[dict]) -> float:
 
     return math.sqrt(variance)
 
+# Feature 30
+def count_clusters(list_of_particles, eps, min_samples):
+    """Count the number of clusters in the particle cloud using DBSCAN."""
+    # Extract positions
+    positions = np.array([(p["pose"]["position"]["x"], p["pose"]["position"]["y"]) for p in list_of_particles])
+
+    # Perform DBSCAN clustering
+    dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+    labels = dbscan.fit_predict(positions)
+
+    # Count the number of unique clusters (excluding noise)
+    unique_labels = set(labels)
+    num_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)
+    return num_clusters
+
+# Feature 31 
+def main_cluster_variance_x(list_of_particles, eps, min_samples):
+    """Calculate the variance in the x-direction for the main cluster."""
+    # Extract positions
+    positions = np.array([(p["pose"]["position"]["x"], p["pose"]["position"]["y"]) for p in list_of_particles])
+
+    # Perform DBSCAN clustering
+    dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+    labels = dbscan.fit_predict(positions)
+
+    # Find the main cluster (largest non-noise cluster)
+    unique_labels, counts = np.unique(labels[labels != -1], return_counts=True)
+    if len(unique_labels) == 0:
+        print("No clusters found.")
+        return None
+
+    main_cluster_label = unique_labels[np.argmax(counts)]
+
+    # Get points in the main cluster
+    main_cluster_points = positions[labels == main_cluster_label]
+
+    # Calculate variance in x-direction
+    variance_x = np.var(main_cluster_points[:, 0])
+    return variance_x
+
+# Feature 32
+def main_cluster_variance_y(list_of_particles, eps, min_samples):
+    """Calculate the variance in the y-direction for the main cluster."""
+    # Extract positions
+    positions = np.array([(p["pose"]["position"]["x"], p["pose"]["position"]["y"]) for p in list_of_particles])
+
+    # Perform DBSCAN clustering
+    dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+    labels = dbscan.fit_predict(positions)
+
+    # Find the main cluster (largest non-noise cluster)
+    unique_labels, counts = np.unique(labels[labels != -1], return_counts=True)
+    if len(unique_labels) == 0:
+        print("No clusters found.")
+        return None
+
+    main_cluster_label = unique_labels[np.argmax(counts)]
+
+    # Get points in the main cluster
+    main_cluster_points = positions[labels == main_cluster_label]
+
+    # Calculate variance in y-direction
+    variance_y = np.var(main_cluster_points[:, 1])
+    return variance_y
+
 
 # Extract all features
-def extract_features_from_message(list_of_particles: list[dict]) -> dict:
+def extract_features_from_message(list_of_particles: list[dict], eps = 0.3, min_samples = 5) -> dict:
     """Extracts all features from a list of particles.
 
     Parameters:
@@ -431,6 +497,15 @@ def extract_features_from_message(list_of_particles: list[dict]) -> dict:
     features["circle_standard_deviation"] = circle_std_deviation(
         list_of_particles
     )
+
+    # Feature 30
+    features["num_clusters"] = count_clusters(list_of_particles, eps=0.5, min_samples=5)    
+
+    # Feature 31
+    features["main_cluster_variance_x"] = main_cluster_variance_x(list_of_particles, eps, min_samples)
+
+    # Feature 32
+    features["main_cluster_variance_y"] = main_cluster_variance_y(list_of_particles, eps, min_samples)        
 
     return features
 
@@ -680,6 +755,6 @@ if __name__ == "__main__":
     ]
 
     # Extract all features
-    features = extract_features_from_message(list_of_particles)
+    features = extract_features_from_message(list_of_particles, eps=0.3, min_samples=5)
     # print(features)
 
