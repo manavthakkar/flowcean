@@ -8,7 +8,7 @@ from sklearn.cluster import DBSCAN
 
 
 # Feature 1
-def cog_max_dist(list_of_particles: list[dict]) -> tuple[np.float64, tuple]:
+def cog_max_dist(list_of_particles: list[dict]) -> tuple[float, tuple | None]:
     """Calculates the maximum distance from any particle to center of gravity.
 
     Parameters:
@@ -64,7 +64,7 @@ def cog_mean_dist(list_of_particles: list[dict]) -> float:
 
 
 # Feature 3
-def calculate_cog_mean_absolute_deviation(
+def cog_mean_absolute_deviation(
     list_of_particles: list[dict],
 ) -> float:
     """Get mean absolute deviation of distances to center of gravity mean.
@@ -89,15 +89,12 @@ def calculate_cog_mean_absolute_deviation(
 
     # Calculate mean absolute deviation
     mean_distance = sum(distances) / len(distances)
-    mean_absolute_deviation = sum(
-        abs(d - mean_distance) for d in distances
-    ) / len(distances)
 
-    return mean_absolute_deviation
+    return sum(abs(d - mean_distance) for d in distances) / len(distances)
 
 
 # Feature 4
-def calculate_cog_median(list_of_particles: list[dict]) -> float:
+def cog_median(list_of_particles: list[dict]) -> float:
     """Get median of distances from all particles to center of gravity mean.
 
     Parameters:
@@ -125,8 +122,8 @@ def calculate_cog_median(list_of_particles: list[dict]) -> float:
 
     if n % 2 == 1:
         return distances[n // 2]
-    else:
-        return (distances[n // 2 - 1] + distances[n // 2]) / 2
+
+    return (distances[n // 2 - 1] + distances[n // 2]) / 2
 
 
 # Feature 5
@@ -143,7 +140,7 @@ def cog_median_absolute_deviation(list_of_particles: list[dict]) -> float:
     float: The median absolute deviation of distances.
     """
     # calculate_cog_median to get the median distance
-    median_distance = calculate_cog_median(list_of_particles)
+    median_distance = cog_median(list_of_particles)
 
     cog_mean = calculate_cog_mean(list_of_particles)
     mean_x, mean_y = cog_mean["x"], cog_mean["y"]
@@ -168,15 +165,14 @@ def cog_median_absolute_deviation(list_of_particles: list[dict]) -> float:
 
     if n_dev % 2 == 1:
         return absolute_deviations[n_dev // 2]
-    else:
-        return (
-            absolute_deviations[n_dev // 2 - 1]
-            + absolute_deviations[n_dev // 2]
-        ) / 2
+
+    return (
+        absolute_deviations[n_dev // 2 - 1] + absolute_deviations[n_dev // 2]
+    ) / 2
 
 
 # Feature 6
-def cog_min_dist(list_of_particles: list[dict]) -> tuple[np.float64, tuple]:
+def cog_min_dist(list_of_particles: list[dict]) -> tuple[float, tuple | None]:
     """Calculates minimum distance from any particle to the center of gravity.
 
     Parameters:
@@ -203,7 +199,7 @@ def cog_min_dist(list_of_particles: list[dict]) -> tuple[np.float64, tuple]:
 
 
 # Feature 7
-def calculate_cog_standard_deviation(list_of_particles: list[dict]) -> float:
+def cog_standard_deviation(list_of_particles: list[dict]) -> float:
     """Calculates standard deviation of distances to center of gravity mean.
 
     Parameters:
@@ -269,11 +265,7 @@ def circle_mean_absolute_deviation(list_of_particles: list[dict]) -> float:
     distances = [dist(center, point) for point in points]
     mean_distance = sum(distances) / len(points)
 
-    # Compute mean absolute deviation
-    mean_absolute_deviation = sum(
-        abs(d - mean_distance) for d in distances
-    ) / len(points)
-    return mean_absolute_deviation
+    return sum(abs(d - mean_distance) for d in distances) / len(points)
 
 
 # Feature 11
@@ -291,10 +283,12 @@ def circle_median(list_of_particles: list[dict]) -> float:
     n = len(distances)
 
     # Find median
+    if n == 0:
+        return 0
+
     if n % 2 == 1:  # Odd number of points
         return distances[n // 2]
-    else:  # Even number of points
-        return (distances[n // 2 - 1] + distances[n // 2]) / 2
+    return (distances[n // 2 - 1] + distances[n // 2]) / 2
 
 
 # Feature 12
@@ -314,12 +308,12 @@ def circle_median_absolute_deviation(list_of_particles: list[dict]) -> float:
     # Compute median absolute deviation
     abs_deviation = sorted(abs(d - median_distance) for d in distances)
     n = len(abs_deviation)
-    mad = (
+
+    return (
         abs_deviation[n // 2]
         if n % 2 == 1
         else (abs_deviation[n // 2 - 1] + abs_deviation[n // 2]) / 2
     )
-    return mad
 
 
 # Feature 13
@@ -332,9 +326,7 @@ def circle_min_dist(list_of_particles: list[dict]) -> float:
     circle = smallest_enclosing_circle(points)
     center, _ = circle
 
-    # Compute the minimum distance
-    min_distance = min(dist(center, point) for point in points)
-    return min_distance
+    return min(dist(center, point) for point in points)
 
 
 # Feature 14
@@ -356,11 +348,19 @@ def circle_std_deviation(list_of_particles: list[dict]) -> float:
 
     return math.sqrt(variance)
 
+
 # Feature 30
-def count_clusters(list_of_particles, eps, min_samples):
+def count_clusters(
+    list_of_particles: list[dict], eps: float, min_samples: int
+) -> int:
     """Count the number of clusters in the particle cloud using DBSCAN."""
     # Extract positions
-    positions = np.array([(p["pose"]["position"]["x"], p["pose"]["position"]["y"]) for p in list_of_particles])
+    positions = np.array(
+        [
+            (p["pose"]["position"]["x"], p["pose"]["position"]["y"])
+            for p in list_of_particles
+        ]
+    )
 
     # Perform DBSCAN clustering
     dbscan = DBSCAN(eps=eps, min_samples=min_samples)
@@ -368,14 +368,22 @@ def count_clusters(list_of_particles, eps, min_samples):
 
     # Count the number of unique clusters (excluding noise)
     unique_labels = set(labels)
-    num_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)
-    return num_clusters
 
-# Feature 31 
-def main_cluster_variance_x(list_of_particles, eps, min_samples):
+    return len(unique_labels) - (1 if -1 in unique_labels else 0)
+
+
+# Feature 31
+def main_cluster_variance_x(
+    list_of_particles: list[dict], eps: float, min_samples: int
+) -> float:
     """Calculate the variance in the x-direction for the main cluster."""
     # Extract positions
-    positions = np.array([(p["pose"]["position"]["x"], p["pose"]["position"]["y"]) for p in list_of_particles])
+    positions = np.array(
+        [
+            (p["pose"]["position"]["x"], p["pose"]["position"]["y"])
+            for p in list_of_particles
+        ]
+    )
 
     # Perform DBSCAN clustering
     dbscan = DBSCAN(eps=eps, min_samples=min_samples)
@@ -385,22 +393,28 @@ def main_cluster_variance_x(list_of_particles, eps, min_samples):
     unique_labels, counts = np.unique(labels[labels != -1], return_counts=True)
     if len(unique_labels) == 0:
         print("No clusters found.")
-        return None
+        return 0.0
 
     main_cluster_label = unique_labels[np.argmax(counts)]
 
     # Get points in the main cluster
     main_cluster_points = positions[labels == main_cluster_label]
 
-    # Calculate variance in x-direction
-    variance_x = np.var(main_cluster_points[:, 0])
-    return variance_x
+    return float(np.var(main_cluster_points[:, 0]))
+
 
 # Feature 32
-def main_cluster_variance_y(list_of_particles, eps, min_samples):
+def main_cluster_variance_y(
+    list_of_particles: list[dict], eps: float, min_samples: int
+) -> float:
     """Calculate the variance in the y-direction for the main cluster."""
     # Extract positions
-    positions = np.array([(p["pose"]["position"]["x"], p["pose"]["position"]["y"]) for p in list_of_particles])
+    positions = np.array(
+        [
+            (p["pose"]["position"]["x"], p["pose"]["position"]["y"])
+            for p in list_of_particles
+        ]
+    )
 
     # Perform DBSCAN clustering
     dbscan = DBSCAN(eps=eps, min_samples=min_samples)
@@ -410,24 +424,28 @@ def main_cluster_variance_y(list_of_particles, eps, min_samples):
     unique_labels, counts = np.unique(labels[labels != -1], return_counts=True)
     if len(unique_labels) == 0:
         print("No clusters found.")
-        return None
+        return 0.0
 
     main_cluster_label = unique_labels[np.argmax(counts)]
 
     # Get points in the main cluster
     main_cluster_points = positions[labels == main_cluster_label]
 
-    # Calculate variance in y-direction
-    variance_y = np.var(main_cluster_points[:, 1])
-    return variance_y
+    return float(np.var(main_cluster_points[:, 1]))
 
 
 # Extract all features
-def extract_features_from_message(list_of_particles: list[dict], eps = 0.3, min_samples = 5) -> dict:
+def extract_features_from_message(
+    list_of_particles: list[dict], eps: float = 0.3, min_samples: int = 5
+) -> dict:
     """Extracts all features from a list of particles.
 
     Parameters:
     list_of_particles (list): List of dictionaries representing particles.
+    eps (float): The maximum distance between two samples for one to be
+        considered as in the neighborhood of the other.
+    min_samples (int): The number of samples in a neighborhood for a point to
+        be considered as a core point.
 
     Returns:
     dict: A dictionary containing all extracted features.
@@ -443,12 +461,12 @@ def extract_features_from_message(list_of_particles: list[dict], eps = 0.3, min_
     features["cog_mean_dist"] = cog_mean_dist(list_of_particles)
 
     # Feature 3
-    features["cog_mean_absolute_deviation"] = (
-        calculate_cog_mean_absolute_deviation(list_of_particles)
+    features["cog_mean_absolute_deviation"] = cog_mean_absolute_deviation(
+        list_of_particles
     )
 
     # Feature 4
-    features["cog_median"] = calculate_cog_median(list_of_particles)
+    features["cog_median"] = cog_median(list_of_particles)
 
     # Feature 5
     features["cog_median_absolute_deviation"] = cog_median_absolute_deviation(
@@ -461,7 +479,7 @@ def extract_features_from_message(list_of_particles: list[dict], eps = 0.3, min_
     # features['cog_min_distance_particle'] = closest_particle
 
     # Feature 7
-    features["cog_standard_deviation"] = calculate_cog_standard_deviation(
+    features["cog_standard_deviation"] = cog_standard_deviation(
         list_of_particles
     )
 
@@ -499,13 +517,19 @@ def extract_features_from_message(list_of_particles: list[dict], eps = 0.3, min_
     )
 
     # Feature 30
-    features["num_clusters"] = count_clusters(list_of_particles, eps=0.5, min_samples=5)    
+    features["num_clusters"] = count_clusters(
+        list_of_particles, eps, min_samples
+    )
 
     # Feature 31
-    features["main_cluster_variance_x"] = main_cluster_variance_x(list_of_particles, eps, min_samples)
+    features["main_cluster_variance_x"] = main_cluster_variance_x(
+        list_of_particles, eps, min_samples
+    )
 
     # Feature 32
-    features["main_cluster_variance_y"] = main_cluster_variance_y(list_of_particles, eps, min_samples)        
+    features["main_cluster_variance_y"] = main_cluster_variance_y(
+        list_of_particles, eps, min_samples
+    )
 
     return features
 
@@ -573,19 +597,21 @@ def calculate_cog_mean(list_of_particles: list[dict]) -> dict:
     return {"x": mean_x, "y": mean_y}
 
 
-def welzl(points: list[tuple], boundary=None) -> tuple:
+def welzl(  # noqa: PLR0911
+    points: list[tuple], boundary: list[tuple[float, float]] | None = None
+) -> tuple:
     """Recursive Welzl's algorithm to find the minimum enclosing circle."""
     if boundary is None:
         boundary = []
 
-    if not points or len(boundary) == 3:
+    if not points or len(boundary) == 3:  # noqa: PLR2004
         if len(boundary) == 0:
             return ((0, 0), 0)
-        elif len(boundary) == 1:
+        if len(boundary) == 1:
             return (boundary[0], 0)
-        elif len(boundary) == 2:
+        if len(boundary) == 2:  # noqa: PLR2004
             return circle_from_two_points(boundary[0], boundary[1])
-        elif len(boundary) == 3:
+        if len(boundary) == 3:  # noqa: PLR2004
             try:
                 return circle_from_three_points(
                     boundary[0], boundary[1], boundary[2]
@@ -607,14 +633,18 @@ def welzl(points: list[tuple], boundary=None) -> tuple:
     return circle
 
 
-def circle_from_two_points(p1, p2) -> tuple:
+def circle_from_two_points(
+    p1: tuple[float, float], p2: tuple[float, float]
+) -> tuple:
     """Return the smallest circle from two points."""
     center = ((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2)
     radius = dist(p1, p2) / 2
     return (center, radius)
 
 
-def circle_from_three_points(p1, p2, p3) -> tuple:
+def circle_from_three_points(
+    p1: tuple[float, float], p2: tuple[float, float], p3: tuple[float, float]
+) -> tuple:
     """Return the smallest circle from three points."""
     ax, ay = p1
     bx, by = p2
@@ -622,7 +652,8 @@ def circle_from_three_points(p1, p2, p3) -> tuple:
 
     d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
     if d == 0:
-        raise ValueError("Collinear points")
+        msg = "Collinear points"
+        raise ValueError(msg)
 
     ux = (
         (ax**2 + ay**2) * (by - cy)
@@ -639,12 +670,14 @@ def circle_from_three_points(p1, p2, p3) -> tuple:
     return (center, radius)
 
 
-def dist(p1, p2) -> float:
+def dist(p1: tuple[float, float], p2: tuple[float, float]) -> float:
     """Calculate the Euclidean distance between two points."""
     return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
 
 
-def is_in_circle(point, circle) -> bool:
+def is_in_circle(
+    point: tuple[float, float], circle: tuple[tuple[float, float], float]
+) -> bool:
     """Check if a point is inside or on the boundary of a circle."""
     center, radius = circle
     return dist(point, center) <= radius
@@ -755,6 +788,8 @@ if __name__ == "__main__":
     ]
 
     # Extract all features
-    features = extract_features_from_message(list_of_particles, eps=0.3, min_samples=5)
-    # print(features)
+    features = extract_features_from_message(
+        list_of_particles, eps=0.3, min_samples=5
+    )
 
+    print(features)
