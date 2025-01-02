@@ -6,7 +6,6 @@ from sklearn.cluster import DBSCAN
 
 ################# Features #################
 
-
 # Feature 1
 def cog_max_dist(list_of_particles: list[dict]) -> tuple[float, tuple | None]:
     """Calculates the maximum distance from any particle to center of gravity.
@@ -18,7 +17,7 @@ def cog_max_dist(list_of_particles: list[dict]) -> tuple[float, tuple | None]:
     tuple: The maximum distance and the coordinates of the particle furthest
     from the COG.
     """
-    cog = calculate_center_of_gravity(list_of_particles)
+    cog = center_of_gravity(list_of_particles)
     cog_x, cog_y = cog["x"], cog["y"]
 
     max_distance = 0
@@ -46,13 +45,11 @@ def cog_mean_dist(list_of_particles: list[dict]) -> float:
     """
     num_particles = len(list_of_particles)
     if num_particles == 0:
-        return 0.0  # If there are no particles, return 0.0
+        return 0.0
 
-    # First, calculate the center of gravity (mean position)
     cog = calculate_cog_mean(list_of_particles)
     cog_x, cog_y = cog["x"], cog["y"]
 
-    # Calculate distances of each particle from the COG
     distances = []
     for particle in list_of_particles:
         px = particle["pose"]["position"]["x"]
@@ -78,7 +75,6 @@ def cog_mean_absolute_deviation(
     cog_mean = calculate_cog_mean(list_of_particles)
     mean_x, mean_y = cog_mean["x"], cog_mean["y"]
 
-    # Calculate distances to the mean
     distances = [
         np.sqrt(
             (particle["pose"]["position"]["x"] - mean_x) ** 2
@@ -106,7 +102,6 @@ def cog_median(list_of_particles: list[dict]) -> float:
     cog_mean = calculate_cog_mean(list_of_particles)
     mean_x, mean_y = cog_mean["x"], cog_mean["y"]
 
-    # Calculate distances to the mean
     distances = [
         np.sqrt(
             (particle["pose"]["position"]["x"] - mean_x) ** 2
@@ -118,7 +113,7 @@ def cog_median(list_of_particles: list[dict]) -> float:
     distances.sort()
     n = len(distances)
     if n == 0:
-        return 0  # Default to 0 if no particles
+        return 0
 
     if n % 2 == 1:
         return distances[n // 2]
@@ -145,7 +140,6 @@ def cog_median_absolute_deviation(list_of_particles: list[dict]) -> float:
     cog_mean = calculate_cog_mean(list_of_particles)
     mean_x, mean_y = cog_mean["x"], cog_mean["y"]
 
-    # Calculate distances to the mean
     distances = [
         np.sqrt(
             (particle["pose"]["position"]["x"] - mean_x) ** 2
@@ -161,7 +155,7 @@ def cog_median_absolute_deviation(list_of_particles: list[dict]) -> float:
     absolute_deviations.sort()
     n_dev = len(absolute_deviations)
     if n_dev == 0:
-        return 0  # Default to 0 if no deviations
+        return 0
 
     if n_dev % 2 == 1:
         return absolute_deviations[n_dev // 2]
@@ -182,7 +176,7 @@ def cog_min_dist(list_of_particles: list[dict]) -> tuple[float, tuple | None]:
     tuple: The minimum distance and the coordinates of the particle closest to
     the COG.
     """
-    cog = calculate_center_of_gravity(list_of_particles)
+    cog = center_of_gravity(list_of_particles)
     cog_x, cog_y = cog["x"], cog["y"]
 
     min_distance = float("inf")
@@ -211,7 +205,6 @@ def cog_standard_deviation(list_of_particles: list[dict]) -> float:
     cog_mean = calculate_cog_mean(list_of_particles)
     mean_x, mean_y = cog_mean["x"], cog_mean["y"]
 
-    # Calculate distances to the mean
     distances = [
         np.sqrt(
             (particle["pose"]["position"]["x"] - mean_x) ** 2
@@ -220,12 +213,10 @@ def cog_standard_deviation(list_of_particles: list[dict]) -> float:
         for particle in list_of_particles
     ]
 
-    # Calculate variance
     variance = sum((d - np.mean(distances)) ** 2 for d in distances) / len(
         distances
     )
 
-    # Standard deviation is the square root of variance
     return np.sqrt(variance)
 
 
@@ -261,7 +252,6 @@ def circle_mean_absolute_deviation(list_of_particles: list[dict]) -> float:
     circle = smallest_enclosing_circle(points)
     center, _ = circle
 
-    # Compute mean distance first
     distances = [dist(center, point) for point in points]
     mean_distance = sum(distances) / len(points)
 
@@ -278,15 +268,13 @@ def circle_median(list_of_particles: list[dict]) -> float:
     circle = smallest_enclosing_circle(points)
     center, _ = circle
 
-    # Compute distances and sort them
     distances = sorted(dist(center, point) for point in points)
     n = len(distances)
 
-    # Find median
     if n == 0:
         return 0
 
-    if n % 2 == 1:  # Odd number of points
+    if n % 2 == 1:
         return distances[n // 2]
     return (distances[n // 2 - 1] + distances[n // 2]) / 2
 
@@ -301,7 +289,6 @@ def circle_median_absolute_deviation(list_of_particles: list[dict]) -> float:
     circle = smallest_enclosing_circle(points)
     center, _ = circle
 
-    # Compute distances and the median distance
     distances = [dist(center, point) for point in points]
     median_distance = circle_median(list_of_particles)
 
@@ -339,11 +326,9 @@ def circle_std_deviation(list_of_particles: list[dict]) -> float:
     circle = smallest_enclosing_circle(points)
     center, _ = circle
 
-    # Compute distances
     distances = [dist(center, point) for point in points]
     mean_distance = sum(distances) / len(points)
 
-    # Compute standard deviation
     variance = sum((d - mean_distance) ** 2 for d in distances) / len(points)
 
     return math.sqrt(variance)
@@ -354,7 +339,6 @@ def count_clusters(
     list_of_particles: list[dict], eps: float, min_samples: int
 ) -> int:
     """Count the number of clusters in the particle cloud using DBSCAN."""
-    # Extract positions
     positions = np.array(
         [
             (p["pose"]["position"]["x"], p["pose"]["position"]["y"])
@@ -366,7 +350,7 @@ def count_clusters(
     dbscan = DBSCAN(eps=eps, min_samples=min_samples)
     labels = dbscan.fit_predict(positions)
 
-    # Count the number of unique clusters (excluding noise)
+    # Count the number of unique clusters
     unique_labels = set(labels)
 
     return len(unique_labels) - (1 if -1 in unique_labels else 0)
@@ -377,7 +361,6 @@ def main_cluster_variance_x(
     list_of_particles: list[dict], eps: float, min_samples: int
 ) -> float:
     """Calculate the variance in the x-direction for the main cluster."""
-    # Extract positions
     positions = np.array(
         [
             (p["pose"]["position"]["x"], p["pose"]["position"]["y"])
@@ -392,7 +375,6 @@ def main_cluster_variance_x(
     # Find the main cluster (largest non-noise cluster)
     unique_labels, counts = np.unique(labels[labels != -1], return_counts=True)
     if len(unique_labels) == 0:
-        print("No clusters found.")
         return 0.0
 
     main_cluster_label = unique_labels[np.argmax(counts)]
@@ -408,7 +390,6 @@ def main_cluster_variance_y(
     list_of_particles: list[dict], eps: float, min_samples: int
 ) -> float:
     """Calculate the variance in the y-direction for the main cluster."""
-    # Extract positions
     positions = np.array(
         [
             (p["pose"]["position"]["x"], p["pose"]["position"]["y"])
@@ -423,7 +404,6 @@ def main_cluster_variance_y(
     # Find the main cluster (largest non-noise cluster)
     unique_labels, counts = np.unique(labels[labels != -1], return_counts=True)
     if len(unique_labels) == 0:
-        print("No clusters found.")
         return 0.0
 
     main_cluster_label = unique_labels[np.argmax(counts)]
@@ -536,8 +516,7 @@ def extract_features_from_message(
 
 ############### Helper Functions ################
 
-
-def calculate_center_of_gravity(list_of_particles: list[dict]) -> dict:
+def center_of_gravity(list_of_particles: list[dict]) -> dict:
     """Calculates the center of gravity of particles based on their weights.
 
     Parameters:
@@ -791,5 +770,3 @@ if __name__ == "__main__":
     features = extract_features_from_message(
         list_of_particles, eps=0.3, min_samples=5
     )
-
-    print(features)
