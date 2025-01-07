@@ -770,3 +770,5 @@ if __name__ == "__main__":
     features = extract_features_from_message(
         list_of_particles, eps=0.3, min_samples=5
     )
+
+    print(features)
