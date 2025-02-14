@@ -14,8 +14,11 @@ import polars as pl
 
 import flowcean.cli
 from flowcean.environments.rosbag import RosbagLoader
+from flowcean.transforms.particle_cloud_image import (
+    ParticleCloudImage,
+)
 
-USE_CACHED_ROS_DATA = False
+USE_CACHED_ROS_DATA = True
 UPDATE_CACHE = False
 WS = Path(__file__).resolve().parent
 
@@ -52,16 +55,36 @@ def main() -> None:
         )
         data = environment.observe()
 
-        if UPDATE_CACHE:
-            if Path("cached_ros_data.json").exists():
-                user_input = input("Overwrite cache? (y/n): ")
-                if user_input == "y":
-                    data.collect().write_json()
-                    print("Cache updated")
-            else:
-                data.collect().write_json(file="cached_ros_data.json")
-                print("Cache created")
-    print(f"original data: {data.collect()}")
+    # transform = ParticleCloudStatistics()
+    # transformed_data = transform(data)
+    # print(f"transformed data: {transformed_data.collect()}")
+
+    # transform = ParticleCloudImages()
+    # transformed_data = transform(data)
+    # print(f"transformed data: {transformed_data.collect()}")
+
+    transform = ParticleCloudImage(
+        particle_cloud_feature_name="/particle_cloud",
+        save_images=True,
+        cutting_area=15.0,
+        image_pixel_size=300,
+    )
+
+    transformed_data = transform(data)
+    print(f"transformed data: {transformed_data.collect()}")
+    #print(f"transformed data types: {transformed_data.dtypes}")
+    #print(f"transformed data first image: {transformed_data.collect()["/particle_cloud_image"][0][1].get("image")}")
+
+    if UPDATE_CACHE:
+        if Path("cached_ros_data.json").exists():
+            user_input = input("Overwrite cache? (y/n): ")
+            if user_input == "y":
+                data.collect().write_json()
+                print("Cache updated")
+        else:
+            data.collect().write_json(file="cached_ros_data.json")
+            print("Cache created")
+    #print(f"original data: {data.collect()}")
 
 
 if __name__ == "__main__":
