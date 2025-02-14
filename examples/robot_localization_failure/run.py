@@ -55,13 +55,6 @@ def main() -> None:
         )
         data = environment.observe()
 
-    # transform = ParticleCloudStatistics()
-    # transformed_data = transform(data)
-    # print(f"transformed data: {transformed_data.collect()}")
-
-    # transform = ParticleCloudImages()
-    # transformed_data = transform(data)
-    # print(f"transformed data: {transformed_data.collect()}")
 
     transform = ParticleCloudImage(
         particle_cloud_feature_name="/particle_cloud",
@@ -72,8 +65,6 @@ def main() -> None:
 
     transformed_data = transform(data)
     print(f"transformed data: {transformed_data.collect()}")
-    #print(f"transformed data types: {transformed_data.dtypes}")
-    #print(f"transformed data first image: {transformed_data.collect()["/particle_cloud_image"][0][1].get("image")}")
 
     if UPDATE_CACHE:
         if Path("cached_ros_data.json").exists():
@@ -84,7 +75,7 @@ def main() -> None:
         else:
             data.collect().write_json(file="cached_ros_data.json")
             print("Cache created")
-    #print(f"original data: {data.collect()}")
+    print(f"original data: {data.collect()}")
 
 
 if __name__ == "__main__":
