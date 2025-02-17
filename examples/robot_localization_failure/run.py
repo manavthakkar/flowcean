@@ -55,7 +55,6 @@ def main() -> None:
         )
         data = environment.observe()
 
-
     transform = ParticleCloudImage(
         particle_cloud_feature_name="/particle_cloud",
         save_images=True,
