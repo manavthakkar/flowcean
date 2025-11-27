@@ -31,6 +31,14 @@ ml_pipeline/
 ├── training/
 │   ├── common.py             # Shared ML utilities (scaling, loading model package)
 │   ├── train_model_rf.py     # Train RandomForest classifier + save artifacts
+│   ├── train_model_xgb.py    # Train XGBoost classifier + save artifacts
+│   ├── train_model_logreg.py # Train Logistic Regression classifier
+│   ├── train_model_svm.py    # Train RBF-kernel SVM classifier
+│   ├── train_model_knn.py    # Train KNN classifier
+│   ├── train_model_adaboost.py # Train AdaBoost classifier
+│   ├── train_model_gradient_boosting.py # Train Gradient Boosting classifier
+│   ├── train_model_decision_tree.py # Train Decision Tree classifier
+│   ├── train_model_extra_trees.py # Train Extra Trees classifier
 │
 ├── evaluation/
 │   ├── evaluate_model.py     # Evaluate ANY model directory (interactive or CLI)
@@ -118,6 +126,24 @@ This ensures:
 * every experiment is preserved
 * model/eval artifacts never overwrite each other
 * the repository root stays clean
+
+---
+
+# 🧑‍🏫 **Available Training Scripts**
+
+Each script trains and packages a classifier for AMCL delocalization detection using the shared utilities in `ml_pipeline/utils/common.py`:
+
+* `train_model_rf.py` — Random Forest
+* `train_model_xgb.py` — XGBoost
+* `train_model_logreg.py` — Logistic Regression
+* `train_model_svm.py` — RBF-kernel Support Vector Machine
+* `train_model_knn.py` — k-Nearest Neighbors (distance weighted)
+* `train_model_adaboost.py` — AdaBoost with shallow decision stumps
+* `train_model_gradient_boosting.py` — Gradient Boosting classifier
+* `train_model_decision_tree.py` — Single decision tree baseline
+* `train_model_extra_trees.py` — Extra Trees ensemble
+
+All scripts follow the same pattern: load `train.parquet`, optionally add temporal features, split train/validation sets, scale when helpful, train the model, print metrics, and save a timestamped model bundle in `artifacts/models/`.
 
 ---
 
