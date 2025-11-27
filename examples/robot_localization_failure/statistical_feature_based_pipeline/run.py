@@ -14,6 +14,9 @@ from flowcean.sklearn.metrics.classification import (
     PrecisionScore,
     Recall,
 )
+from flowcean.sklearn.random_forest_classifier import (
+    RandomForestClassifierLearner,
+)
 from flowcean.xgboost.learner import XGBoostClassifierLearner
 from statistical_feature_based_pipeline.training import collect_data
 
@@ -22,20 +25,21 @@ logger = logging.getLogger(__name__)
 
 def main() -> None:
     config = flowcean.cli.initialize()
-
     samples_train, samples_eval = collect_data(config)
 
+    # Select input and output features
     inputs = samples_train.drop(
         ["is_delocalized", "position_error", "heading_error"],
     ).columns
     outputs = samples_train.select(["is_delocalized"]).columns
 
-    xgb = XGBoostClassifierLearner()
     learners = [
-        xgb,
+        XGBoostClassifierLearner(),
+        RandomForestClassifierLearner(),
     ]
 
     models = []
+
     for learner in learners:
         print(f"Training model: {learner.name}")
         model = learn_offline(
@@ -53,6 +57,7 @@ def main() -> None:
         PrecisionScore(),
         Recall(),
     ]
+
     report = evaluate_offline(
         models,
         DataFrame(samples_eval),
@@ -60,13 +65,13 @@ def main() -> None:
         outputs=outputs,
         metrics=metrics,
     )
+
     print(report.pretty_print())
-    # Save the model
-    best_model = models[
-        0
-    ]  # replace with select_best_model() once it is available
+
+    best_model = models[0]  # replace with select_best_model() once available
     model_path = Path(config.learning.model_path)
     model_path.parent.mkdir(parents=True, exist_ok=True)
+
     logger.info("Saving model to %s", model_path)
     best_model.save(model_path)
 
