@@ -50,7 +50,12 @@ def load_dataset(parquet_path: Path) -> pl.DataFrame:
     return df
 
 
-def prepare_features(df: pl.DataFrame, use_scanmap_features: bool = True):
+def prepare_features(
+    df: pl.DataFrame,
+    use_scanmap_features: bool = True,
+    use_particle_features: bool = True,
+    use_amcl_pose: bool = False,
+):
     """
     Removes leakage columns, extracts feature matrix X and label y,
     ensures consistent column order.
@@ -66,10 +71,39 @@ def prepare_features(df: pl.DataFrame, use_scanmap_features: bool = True):
         "line_angle", "line_distance", "line_fitting", "line_length",
     ]
 
+    PARTICLE_FEATURES = [
+        "cog_max_distance", "cog_mean_dist", "cog_mean_absolute_deviation",
+        "cog_median", "cog_median_absolute_deviation",
+        "cog_min_distance", "cog_standard_deviation",
+        "circle_radius", "circle_mean", "circle_mean_absolute_deviation",
+        "circle_median", "circle_median_absolute_deviation",
+        "circle_min_distance", "circle_standard_deviation",
+        "num_clusters",
+        "main_cluster_variance_x", "main_cluster_variance_y",
+    ]
+
+    AMCL_POSE_FEATURES = [
+        "amcl_x", "amcl_y",
+        "amcl_qx", "amcl_qy", "amcl_qz", "amcl_qw",
+        "amcl_yaw",
+    ]
+
     if not use_scanmap_features:
         cols_to_drop = [c for c in SCANMAP_FEATURES if c in df.columns]
         if cols_to_drop:
             print(f"⚠️  Removing Scan-Map features: {cols_to_drop}")
+            df = df.drop(cols_to_drop)
+
+    if not use_particle_features:
+        cols_to_drop = [c for c in PARTICLE_FEATURES if c in df.columns]
+        if cols_to_drop:
+            print(f"⚠️  Removing Particle features: {cols_to_drop}")
+            df = df.drop(cols_to_drop)
+
+    if not use_amcl_pose:
+        cols_to_drop = [c for c in AMCL_POSE_FEATURES if c in df.columns]
+        if cols_to_drop:
+            print(f"⚠️  Removing AMCL pose features: {cols_to_drop}")
             df = df.drop(cols_to_drop)
 
     if LABEL_COL not in df.columns:
@@ -317,4 +351,7 @@ def add_temporal_features(df: pl.DataFrame) -> pl.DataFrame:
     df = df.with_columns(new_cols)
 
     print(f"[add_temporal_features] Added {len(new_cols)} new temporal feature columns.")
+    # Shift/rolling ops introduce nulls in the first row; drop them so downstream
+    # models that disallow NaN (e.g., LogisticRegression) can train without errors.
+    df = df.drop_nulls()
     return df

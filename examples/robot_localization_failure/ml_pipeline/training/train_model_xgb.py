@@ -16,8 +16,10 @@ from ml_pipeline.utils.common import (
 )
 
 MODEL_NAME = "xgboost"          #xgboost_temporal
-USE_TEMPORAL_FEATURES = False
-USE_SCANMAP_FEATURES = False
+USE_TEMPORAL_FEATURES = True
+USE_SCANMAP_FEATURES = True
+USE_PARTICLE_FEATURES = True
+USE_AMCL_POSE = True
 
 
 def main():
@@ -38,7 +40,12 @@ def main():
         print("Skipping temporal features.")
 
     print("Preparing features...")
-    X, y, feature_cols = prepare_features(df, use_scanmap_features=USE_SCANMAP_FEATURES)
+    X, y, feature_cols = prepare_features(
+        df,
+        use_scanmap_features=USE_SCANMAP_FEATURES,
+        use_particle_features=USE_PARTICLE_FEATURES,
+        use_amcl_pose=USE_AMCL_POSE,
+    )
 
     # ============================================================
     # 2) Train/val split
@@ -62,37 +69,48 @@ def main():
     # ============================================================
     # 4) Train model
     # ============================================================
-    print(f"\nTraining {MODEL_NAME}...")
+    print(f"\nTraining {MODEL_NAME} with a small param sweep...")
 
-    model = xgb.XGBClassifier(
-        n_estimators=500,
-        max_depth=6,
-        learning_rate=0.05,
-        subsample=0.9,
-        colsample_bytree=0.9,
-        objective="binary:logistic",
-        eval_metric="logloss",
-        tree_method="hist",  # good for CPU
-        reg_lambda=1.0,
-        reg_alpha=0.0,
-        scale_pos_weight=(len(y) - sum(y)) / sum(y),   # class imbalance fix
-        random_state=42,
-    )
+    # simple imbalance weight
+    pos = sum(y)
+    neg = len(y) - pos
+    base_scale_pos_weight = neg / max(1, pos)
 
-    model.fit(
-        X_train_scaled, y_train,
-        eval_set=[(X_val_scaled, y_val)],
-        verbose=False
-    )
+    candidate_params = [
+        {"n_estimators": 400, "max_depth": 5, "learning_rate": 0.08, "subsample": 0.9, "colsample_bytree": 0.9},
+        {"n_estimators": 600, "max_depth": 6, "learning_rate": 0.05, "subsample": 0.85, "colsample_bytree": 0.85},
+        {"n_estimators": 800, "max_depth": 6, "learning_rate": 0.03, "subsample": 0.8, "colsample_bytree": 0.8},
+    ]
 
-    # ============================================================
-    # 5) Evaluate
-    # ============================================================
-    y_pred = model.predict(X_val_scaled)
+    best = None
+    for i, params in enumerate(candidate_params):
+        print(f"\n[Trial {i+1}/{len(candidate_params)}] params={params}")
+        model = xgb.XGBClassifier(
+            objective="binary:logistic",
+            eval_metric="logloss",
+            tree_method="hist",
+            reg_lambda=1.0,
+            reg_alpha=0.0,
+            scale_pos_weight=base_scale_pos_weight,
+            random_state=42,
+            **params,
+        )
 
-    print("\n=== Validation Performance ===")
-    metrics = compute_metrics(y_val, y_pred)
-    print_metrics(metrics)
+        model.fit(X_train_scaled, y_train, verbose=False)
+        y_pred = model.predict(X_val_scaled)
+        metrics = compute_metrics(y_val, y_pred)
+        print_metrics(metrics)
+
+        f1 = metrics["f1"]
+        if best is None or f1 > best["f1"]:
+            best = {"f1": f1, "metrics": metrics, "model": model, "params": params}
+
+    assert best is not None, "No model was trained."
+    model = best["model"]
+    metrics = best["metrics"]
+
+    print("\n=== Selected best XGBoost model ===")
+    print(f"F1: {best['f1']:.4f} | params: {best['params']}")
 
     # ============================================================
     # 6) Save model package
@@ -106,8 +124,11 @@ def main():
         extra_metadata={
             "temporal_features": USE_TEMPORAL_FEATURES,
             "model_type": MODEL_NAME,
-            "notes": "trained using single map simulation data",
-            "use_scanmap_features": USE_SCANMAP_FEATURES
+            "notes": "temporal + scan-map features; small manual sweep",
+            "use_scanmap_features": USE_SCANMAP_FEATURES,
+            "use_particle_features": USE_PARTICLE_FEATURES,
+            "use_amcl_pose": USE_AMCL_POSE,
+            "best_params": best["params"],
         }
     )
 

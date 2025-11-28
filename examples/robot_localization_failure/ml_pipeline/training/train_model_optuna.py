@@ -32,6 +32,8 @@ from ml_pipeline.utils.common import (
 MODEL_NAME = "optuna"
 USE_TEMPORAL_FEATURES = True
 USE_SCANMAP_FEATURES = True
+USE_PARTICLE_FEATURES = True
+USE_AMCL_POSE = True
 
 N_TRIALS = 50
 RANDOM_STATE = 42
@@ -104,7 +106,12 @@ def main():
         print("Skipping temporal features.")
 
     print("Preparing features...")
-    X, y, feature_cols = prepare_features(df, use_scanmap_features=USE_SCANMAP_FEATURES)
+    X, y, feature_cols = prepare_features(
+        df,
+        use_scanmap_features=USE_SCANMAP_FEATURES,
+        use_particle_features=USE_PARTICLE_FEATURES,
+        use_amcl_pose=USE_AMCL_POSE,
+    )
 
     # Global train/val split used by ALL trials
     X_train, X_val, y_train, y_val = train_test_split(
@@ -184,6 +191,9 @@ def main():
         "best_f05": float(study.best_value),
         "n_trials": N_TRIALS,
         "temporal_features": USE_TEMPORAL_FEATURES,
+        "use_scanmap_features": USE_SCANMAP_FEATURES,
+        "use_particle_features": USE_PARTICLE_FEATURES,
+        "use_amcl_pose": USE_AMCL_POSE,
     }
 
     save_model(

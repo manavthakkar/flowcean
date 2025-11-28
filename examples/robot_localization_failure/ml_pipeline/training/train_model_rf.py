@@ -17,8 +17,10 @@ from ml_pipeline.utils.common import (
 
 
 MODEL_NAME = "random_forest"
-USE_TEMPORAL_FEATURES = True
-USE_SCANMAP_FEATURES = True
+USE_TEMPORAL_FEATURES = False
+USE_SCANMAP_FEATURES = False
+USE_PARTICLE_FEATURES = True
+USE_AMCL_POSE = False
 
 
 def main():
@@ -39,7 +41,12 @@ def main():
         print("Skipping temporal features.")
 
     print("Preparing features...")
-    X, y, feature_cols = prepare_features(df,use_scanmap_features=USE_SCANMAP_FEATURES)
+    X, y, feature_cols = prepare_features(
+        df,
+        use_scanmap_features=USE_SCANMAP_FEATURES,
+        use_particle_features=USE_PARTICLE_FEATURES,
+        use_amcl_pose=USE_AMCL_POSE,
+    )
 
     # ============================================================
     # 2) Train/val split
@@ -94,7 +101,9 @@ def main():
         "temporal_features": USE_TEMPORAL_FEATURES,
         "model_type": MODEL_NAME,
         "notes": "trained using single map simulation data",
-        "use_scanmap_features": USE_SCANMAP_FEATURES
+        "use_scanmap_features": USE_SCANMAP_FEATURES,
+        "use_particle_features": USE_PARTICLE_FEATURES,
+        "use_amcl_pose": USE_AMCL_POSE,
     }
     )
 

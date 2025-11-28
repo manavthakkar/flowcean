@@ -53,6 +53,12 @@ def main():
         default=0.5,
         help="Decision threshold on positive class probability (default: 0.5)",
     )
+    parser.add_argument(
+        "--smooth_window",
+        type=int,
+        default=0,
+        help="Optional temporal smoothing window (uses time ordering). 0 disables.",
+    )
     args = parser.parse_args()
 
     # ---------------------------
@@ -128,6 +134,28 @@ def main():
         print("⚠️ Model has no predict_proba → falling back to predict(). Threshold ignored.")
         y_pred = model.predict(X_scaled)
         y_proba = None
+
+    # Optional temporal smoothing over time-sorted probabilities/predictions
+    if args.smooth_window and args.smooth_window > 1 and "time" in df.columns:
+        print(f"Applying temporal smoothing (window={args.smooth_window})...")
+        time_vals = df["time"].to_numpy()
+        order = time_vals.argsort()
+        inv_order = order.argsort()
+
+        if y_proba is not None:
+            proba_sorted = y_proba[order]
+            kernel = np.ones(args.smooth_window) / args.smooth_window
+            smoothed_sorted = np.convolve(proba_sorted, kernel, mode="same")
+            y_proba = smoothed_sorted[inv_order]
+            y_pred = (y_proba >= args.threshold).astype(int)
+        else:
+            pred_sorted = y_pred[order]
+            kernel = np.ones(args.smooth_window) / args.smooth_window
+            smoothed_sorted = np.convolve(pred_sorted, kernel, mode="same")
+            smoothed = smoothed_sorted[inv_order]
+            y_pred = (smoothed >= 0.5).astype(int)
+    elif args.smooth_window and "time" not in df.columns:
+        print("⚠️ Requested smoothing but 'time' column missing; skipping smoothing.")
 
     # ---------------------------
     # Metrics
