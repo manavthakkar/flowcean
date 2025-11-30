@@ -55,7 +55,13 @@ def main():
     print(f"Reading evaluation dataset: {eval_path}")
     df = pl.read_parquet(eval_path).drop_nulls()
 
-    use_temporal = metadata is not None and metadata.get("temporal_features", False)
+    use_temporal = (
+        metadata is not None
+        and (
+            metadata.get("temporal_features", False)
+            or metadata.get("use_temporal_features", False)
+        )
+    )
     if use_temporal:
         print("🔧 Model expects TEMPORAL features → adding them to eval dataset...")
         df = add_temporal_features(df)

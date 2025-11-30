@@ -102,8 +102,11 @@ def main():
 
     # If the model was trained with temporal features, add them here
     use_temporal = False
-    if metadata is not None and metadata.get("temporal_features"):
-        use_temporal = True
+    if metadata is not None:
+        # support either "use_temporal_features" or legacy "temporal_features" flag
+        use_temporal = bool(
+            metadata.get("use_temporal_features") or metadata.get("temporal_features")
+        )
 
     if use_temporal:
         print("🔧 Model expects TEMPORAL features → adding them to eval dataset...")
