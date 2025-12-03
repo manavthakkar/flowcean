@@ -1,5 +1,8 @@
 import polars as pl
 import flowcean.cli
+import tempfile
+import os
+from pathlib import Path
 
 from ml_pipeline.dataset.bag_processor import process_single_bag
 from ml_pipeline.utils.paths import DATASETS
@@ -19,6 +22,48 @@ def safe_iter(x):
     return list(x)
 
 
+def process_and_write_temp(bag_path, topics, msg_paths, pos_th, head_th, temp_dir, tag):
+    """
+    Process a single bag, write to a temporary parquet file.
+    Returns the path to the parquet.
+    """
+    print(f" → Processing bag: {bag_path}")
+
+    df = process_single_bag(
+        bag_path=bag_path,
+        topics=topics,
+        message_paths=msg_paths,
+        position_threshold=pos_th,
+        heading_threshold=head_th,
+    )
+
+    temp_path = Path(temp_dir) / f"{tag}__{Path(bag_path).stem}.parquet"
+    df.write_parquet(temp_path)
+
+    return temp_path
+
+
+def finalize_dataset(temp_files, output_parquet, output_csv):
+    """
+    Use Polars LazyFrame streaming to concat, sort, and write final outputs.
+    Guarantees identical ordering to original implementation.
+    """
+    if len(temp_files) == 0:
+        return
+
+    # Lazy loading of each parquet file (streaming)
+    lazy_frames = [pl.scan_parquet(str(f)) for f in temp_files]
+
+    final_df = (
+        pl.concat(lazy_frames, how="vertical")
+        .sort("time")   # identical to original behavior
+        .collect()
+    )
+
+    final_df.write_parquet(output_parquet)
+    final_df.write_csv(output_csv)
+
+
 def main():
     # Load config
     config = flowcean.cli.initialize()
@@ -27,31 +72,34 @@ def main():
     pos_th = float(config.localization.position_threshold)
     head_th = float(config.localization.heading_threshold)
 
-    # Convert configs safely
     training_paths = safe_iter(config.rosbag.training_paths)
     eval_paths = safe_iter(config.rosbag.evaluation_paths)
+
+    msg_paths = config.rosbag.message_paths
+
+    # Temporary directory for streaming parquet files
+    temp_dir = tempfile.mkdtemp(prefix="flowcean_tmp_")
+    print(f"🗂 Temporary directory: {temp_dir}")
 
     # ============================================================
     # TRAINING SET
     # ============================================================
-    if len(training_paths) > 0:
+    train_temp_files = []
+    if training_paths:
         print(f"📦 Processing {len(training_paths)} training bag(s)...")
 
-        train_tables = []
         for bag in training_paths:
-            print(f" → Training bag: {bag}")
-            df = process_single_bag(
-                bag_path=bag,
-                topics=topics,
-                message_paths=config.rosbag.message_paths,
-                position_threshold=pos_th,
-                heading_threshold=head_th,
+            temp_file = process_and_write_temp(
+                bag, topics, msg_paths, pos_th, head_th, temp_dir, tag="train"
             )
-            train_tables.append(df)
+            train_temp_files.append(temp_file)
 
-        train_df = pl.concat(train_tables, how="vertical").sort("time")
-        train_df.write_parquet(DATASETS / "train.parquet")
-        train_df.write_csv(DATASETS / "train.csv")
+        print("🧮 Finalizing training dataset...")
+        finalize_dataset(
+            temp_files=train_temp_files,
+            output_parquet=DATASETS / "train.parquet",
+            output_csv=DATASETS / "train.csv",
+        )
 
         print("✔ Saved training dataset")
     else:
@@ -60,24 +108,22 @@ def main():
     # ============================================================
     # EVALUATION SET
     # ============================================================
-    if len(eval_paths) > 0:
+    eval_temp_files = []
+    if eval_paths:
         print(f"📦 Processing {len(eval_paths)} evaluation bag(s)...")
 
-        eval_tables = []
         for bag in eval_paths:
-            print(f" → Evaluation bag: {bag}")
-            df = process_single_bag(
-                bag_path=bag,
-                topics=topics,
-                message_paths=config.rosbag.message_paths,
-                position_threshold=pos_th,
-                heading_threshold=head_th,
+            temp_file = process_and_write_temp(
+                bag, topics, msg_paths, pos_th, head_th, temp_dir, tag="eval"
             )
-            eval_tables.append(df)
+            eval_temp_files.append(temp_file)
 
-        eval_df = pl.concat(eval_tables, how="vertical").sort("time")
-        eval_df.write_parquet(DATASETS / "eval.parquet")
-        eval_df.write_csv(DATASETS / "eval.csv")
+        print("🧮 Finalizing evaluation dataset...")
+        finalize_dataset(
+            temp_files=eval_temp_files,
+            output_parquet=DATASETS / "eval.parquet",
+            output_csv=DATASETS / "eval.csv",
+        )
 
         print("✔ Saved evaluation dataset")
     else:
@@ -86,10 +132,13 @@ def main():
     # ============================================================
     # FINAL SANITY CHECK
     # ============================================================
-    if len(training_paths) == 0 and len(eval_paths) == 0:
+    if not training_paths and not eval_paths:
         print("\n❌ ERROR: Both training_paths and evaluation_paths are empty.")
         print("Nothing to process. Check your config.yaml.")
         return
+
+    print(f"\n🧹 Temporary parquet files stored at: {temp_dir}")
+    print("Delete this directory manually after verification.")
 
 
 if __name__ == "__main__":
