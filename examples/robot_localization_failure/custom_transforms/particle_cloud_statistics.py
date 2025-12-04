@@ -34,6 +34,8 @@ class ParticleCloudStatistics(Transform):
         self.particle_cloud_feature_name = particle_cloud_feature_name
 
     def apply(self, data: pl.LazyFrame) -> pl.LazyFrame:
+        random.seed(42)
+        np.random.seed(42)
         logger.debug("Matching sampling rate of time series.")
 
         sys.setrecursionlimit(1000000)
