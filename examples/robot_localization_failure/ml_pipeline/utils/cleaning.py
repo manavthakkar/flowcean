@@ -1,14 +1,6 @@
 import shutil
 from .paths import ARTIFACTS, DATASETS, MODELS
 
-def clean_artifacts():
-    if ARTIFACTS.exists():
-        shutil.rmtree(ARTIFACTS)
-        print("✔ Deleted artifacts/")
-    ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    print("✔ Recreated artifacts/")
-
-
 def clean_models():
     if MODELS.exists():
         shutil.rmtree(MODELS)
@@ -18,8 +10,18 @@ def clean_models():
 
 
 def clean_dataset():
-    if DATASETS.exists():
-        shutil.rmtree(DATASETS)
-        print("✔ Deleted artifacts/datasets/")
     DATASETS.mkdir(parents=True, exist_ok=True)
-    print("✔ Recreated artifacts/datasets/")
+    targets = ["train.parquet", "eval.parquet", "train.csv", "eval.csv"]
+
+    deleted = []
+    for name in targets:
+        path = DATASETS / name
+        if path.exists():
+            path.unlink()
+            deleted.append(name)
+            print(f"✔ Deleted artifacts/datasets/{name}")
+
+    if not deleted:
+        print("No dataset files to delete in artifacts/datasets/")
+    else:
+        print("✔ Finished cleaning dataset files in artifacts/datasets/")
