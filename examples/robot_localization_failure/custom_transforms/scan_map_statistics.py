@@ -250,6 +250,9 @@ class ScanMapStatistics(Transform):
         self.synced_sensor_poses = []
         for scan in tqdm(self.scan_timeseries, "Computing scan points"):
             timestamp = scan["time"]
+            # Skip scans with invalid angle_increment
+            if scan["value"]["angle_increment"] == 0:
+                continue
             # Binary search for the latest pose before timestamp
             idx = bisect.bisect_right(pose_times, timestamp) - 1
             if idx >= 0:
@@ -540,6 +543,12 @@ class ScanMapStatistics(Transform):
             lines_np = self.precomputed_map_lines["lines_np"]
         complete_scan_timeseries = data[self.scan_topic].to_list()[0]
         scan_points_timeseries = data["scan_points"][0].to_list()
+
+        # Create a lookup dictionary for complete scans by timestamp
+        complete_scan_dict = {
+            scan["time"]: scan for scan in complete_scan_timeseries
+        }
+
         point_distance_timeseries = []
         point_fitting_timeseries = []
         point_inlier_timeseries = []
@@ -563,11 +572,14 @@ class ScanMapStatistics(Transform):
         ):
             scan_pts = np.array(scan["value"])
 
-            valid_mask = complete_scan_timeseries[i]["value"]["ranges"] != 0
+            # Get the corresponding complete scan by timestamp
+            complete_scan = complete_scan_dict[scan["time"]]
+
+            valid_mask = complete_scan["value"]["ranges"] != 0
             valid_angles = np.arange(
-                complete_scan_timeseries[i]["value"]["angle_min"],
-                complete_scan_timeseries[i]["value"]["angle_max"],
-                complete_scan_timeseries[i]["value"]["angle_increment"],
+                complete_scan["value"]["angle_min"],
+                complete_scan["value"]["angle_max"],
+                complete_scan["value"]["angle_increment"],
             )
             sensor_x, sensor_y, theta_sensor = self.synced_sensor_poses[i]
             min_distances, closest_line_indices = (
@@ -626,10 +638,10 @@ class ScanMapStatistics(Transform):
                 map_origin_x,
                 map_origin_y,
                 occupancy_grid,
-                complete_scan_timeseries[i]["value"]["range_max"],
+                complete_scan["value"]["range_max"],
             )
             actual_ranges = np.array(
-                complete_scan_timeseries[i]["value"]["ranges"],
+                complete_scan["value"]["ranges"],
             )[valid_mask]
 
             if len(actual_ranges) == 0:
