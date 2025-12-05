@@ -25,7 +25,7 @@ def process_single_bag(
 
     print(f"\n=== Processing bag: {bag_path} ===")
 
-    raw_lf = load_rosbag(bag_path, topics, message_paths=message_paths)
+    raw_lf = load_rosbag(bag_path, topics, message_paths=message_paths, cache=False)
 
     # -----------------------------
     # Extract occupancy map

@@ -52,12 +52,22 @@ def main():
 
     # bags from config.yaml
     all_bags = config.rosbag.bags
+    failed_bags = []
 
     print("\n=== Processing ALL Bags from config.yaml → rosbag.bags ===")
     for bag_path in all_bags:
-        process_bag(bag_path, config, topics)
+        try:
+            process_bag(bag_path, config, topics)
+        except Exception as exc:
+            failed_bags.append((bag_path, exc))
+            print(f"✖ Failed to process {bag_path}: {exc}")
 
-    print("\n🎉 Finished processing all bags!\n")
+    if failed_bags:
+        print("\n⚠️ Completed with errors:")
+        for bag_path, exc in failed_bags:
+            print(f"- {bag_path}: {exc}")
+    else:
+        print("\n🎉 Finished processing all bags!\n")
 
 
 if __name__ == "__main__":
