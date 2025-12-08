@@ -7,6 +7,7 @@ import flowcean.cli
 import polars as pl
 import numpy as np
 import csv
+from ml_pipeline.training.report_generator import generate_pdf_report
 
 from catboost import CatBoostClassifier, Pool
 from pathlib import Path
@@ -632,7 +633,31 @@ def main():
         best_algo=best_algo,
         model_dir=model_dir,
     )
+    # -------------------- REPORT GENERATION ------------------------
+    # Extract only SVGs to feed into report
+    svg_paths = {k: v for k, v in plot_paths.items() if str(v).endswith(".svg")}
 
+    if config.report.generate_pdf:
+        generate_pdf_report(
+            model_dir=model_dir,
+            model_name=f"{MODEL_NAME}_{best_algo}",
+            best_algo=best_algo,
+            n_trials=N_TRIALS,
+            metrics_t05=metrics_t05,
+            best_thr=best_thr,
+            best_metrics=best_metrics,
+            train_maps=config.experiment.train_maps,
+            eval_maps=config.experiment.eval_maps,
+            odometry=config.experiment.odometry,
+            notes=config.experiment.notes,
+            feature_flags={
+                "temporal": USE_TEMPORAL_FEATURES,
+                "scanmap": USE_SCANMAP_FEATURES,
+                "particle": USE_PARTICLE_FEATURES,
+                "amcl": USE_AMCL_POSE,
+            },
+            svg_paths=svg_paths,
+        )
     # -------------------- W&B METRICS & PLOTS & ARTIFACTS ------------------------
 
     log_eval_metrics_to_wandb(

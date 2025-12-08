@@ -41,12 +41,14 @@ experiment:
   odometry: "random"
   notes: "Test 1 baseline"
 
+report:
+  generate_pdf: true
 
 localization:
   position_threshold: 0.2
   heading_threshold: 0.2
 
 optuna:
-  n_trials: 2
+  n_trials: 4
   model_name: "optuna"
 
