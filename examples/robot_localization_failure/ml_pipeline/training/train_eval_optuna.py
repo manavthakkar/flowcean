@@ -7,7 +7,9 @@ import numpy as np
 
 from catboost import CatBoostClassifier, Pool
 from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
-from sklearn.metrics import f1_score, precision_score, recall_score, fbeta_score, confusion_matrix
+from sklearn.metrics import (
+    f1_score, precision_score, recall_score, fbeta_score, confusion_matrix
+)
 
 from ml_pipeline.utils.paths import DATASETS
 from ml_pipeline.utils.common import (
@@ -22,6 +24,8 @@ from ml_pipeline.utils.common import (
     save_model,
     LABEL_COL,
 )
+
+# ====================== CONFIG ==============================
 
 config = flowcean.cli.initialize()
 
@@ -41,8 +45,9 @@ ALGORITHMS = {
     "xgb": {"model_type": "xgb"},
 }
 
+
 # ============================================================
-# CLASS WEIGHTS / SCALE_POS_WEIGHT HELPERS
+# CLASS WEIGHTS / SCALE POS WEIGHT HELPERS
 # ============================================================
 
 def compute_class_weights_dict(y):
@@ -175,7 +180,7 @@ def build_model(algo, params, class_weight, scale_pos_weight):
 
 
 # ============================================================
-# STRIP PARAM PREFIX
+# STRIP PREFIX
 # ============================================================
 
 def extract_algo_params(all_params, algo):
@@ -184,7 +189,7 @@ def extract_algo_params(all_params, algo):
 
 
 # ============================================================
-# PREPARE DATASETS PER ALGORITHM
+# PREPARE DATASETS
 # ============================================================
 
 def prepare_datasets(df):
@@ -214,20 +219,20 @@ def prepare_datasets(df):
         X_full_scaled = apply_scaler(X, scaler)
 
         if algo == "catboost":
-            class_weight_train = compute_class_weights_list(y_train)
-            class_weight_full = compute_class_weights_list(y)
-            scale_train = None
-            scale_full = None
+            cw_train = compute_class_weights_list(y_train)
+            cw_full = compute_class_weights_list(y)
+            spw_train = None
+            spw_full = None
         elif algo == "xgb":
-            class_weight_train = None
-            class_weight_full = None
-            scale_train = compute_scale_pos_weight(y_train)
-            scale_full = compute_scale_pos_weight(y)
+            cw_train = None
+            cw_full = None
+            spw_train = compute_scale_pos_weight(y_train)
+            spw_full = compute_scale_pos_weight(y)
         else:
-            class_weight_train = compute_class_weights_dict(y_train)
-            class_weight_full = compute_class_weights_dict(y)
-            scale_train = None
-            scale_full = None
+            cw_train = compute_class_weights_dict(y_train)
+            cw_full = compute_class_weights_dict(y)
+            spw_train = None
+            spw_full = None
 
         prepared[algo] = {
             "X_train": X_train_scaled,
@@ -238,17 +243,17 @@ def prepare_datasets(df):
             "y_full": y,
             "scaler": scaler,
             "feature_cols": feature_cols,
-            "class_weight_train": class_weight_train,
-            "class_weight_full": class_weight_full,
-            "scale_train": scale_train,
-            "scale_full": scale_full,
+            "class_weight_train": cw_train,
+            "class_weight_full": cw_full,
+            "scale_train": spw_train,
+            "scale_full": spw_full,
         }
 
     return prepared
 
 
 # ============================================================
-# AUTOMATIC EVALUATION
+# AUTOMATIC EVALUATION (RETURNS METRICS)
 # ============================================================
 
 def evaluate_model_automatically(model, scaler, feature_cols, metadata):
@@ -277,6 +282,7 @@ def evaluate_model_automatically(model, scaler, feature_cols, metadata):
 
     X_scaled = apply_scaler(X, scaler)
 
+    # predictions @ thr=0.5
     if hasattr(model, "predict_proba"):
         y_proba = model.predict_proba(X_scaled)[:, 1]
         y_pred = (y_proba >= 0.5).astype(int)
@@ -284,10 +290,9 @@ def evaluate_model_automatically(model, scaler, feature_cols, metadata):
         y_pred = model.predict(X_scaled)
         y_proba = None
 
-    # print metrics
     print("\n=== AUTOMATIC EVALUATION (threshold=0.5) ===")
-    metrics = compute_metrics(y_true, y_pred)
-    print_metrics(metrics)
+    metrics_t05 = compute_metrics(y_true, y_pred)
+    print_metrics(metrics_t05)
 
     # save predictions
     out_path = metadata["model_dir"] / "eval_results.parquet"
@@ -298,26 +303,24 @@ def evaluate_model_automatically(model, scaler, feature_cols, metadata):
     df_out.write_parquet(out_path)
     print(f"✔ Saved eval predictions → {out_path}")
 
-    return y_true, y_proba
+    return y_true, y_proba, metrics_t05
 
 
 # ============================================================
-# THRESHOLD SWEEP (NO SAVING)
+# THRESHOLD SWEEP (RETURNS BEST THRESHOLD + METRICS)
 # ============================================================
 
 def sweep_thresholds(y_true, y_proba):
     if y_proba is None:
         print("⚠️ Model has no predict_proba → skipping threshold sweep.")
-        return
+        return None, None
 
     print("\n=== AUTOMATIC THRESHOLD SWEEP ===")
-    print("thr\tprec\trec\tF1\tF0.5")
+    print("thr\tprec\trec\tF1")
 
     best_f1 = -1
-    best_thr_f1 = None
-
-    best_f05 = -1
-    best_thr_f05 = None
+    best_thr = None
+    best_metrics = None
 
     for thr in np.linspace(0.05, 0.95, 19):
         y_pred = (y_proba >= thr).astype(int)
@@ -325,20 +328,53 @@ def sweep_thresholds(y_true, y_proba):
         prec = precision_score(y_true, y_pred, zero_division=0)
         rec = recall_score(y_true, y_pred, zero_division=0)
         f1 = f1_score(y_true, y_pred, zero_division=0)
-        f05 = fbeta_score(y_true, y_pred, beta=0.5, zero_division=0)
 
-        print(f"{thr:.2f}\t{prec:.3f}\t{rec:.3f}\t{f1:.3f}\t{f05:.3f}")
+        print(f"{thr:.2f}\t{prec:.3f}\t{rec:.3f}\t{f1:.3f}")
 
         if f1 > best_f1:
             best_f1 = f1
-            best_thr_f1 = thr
+            best_thr = thr
+            best_metrics = {"precision": prec, "recall": rec, "f1": f1}
 
-        if f05 > best_f05:
-            best_f05 = f05
-            best_thr_f05 = thr
+    print(f"\n🏆 Best F1 threshold = {best_thr:.2f}  (F1 = {best_f1:.3f})")
 
-    print(f"\n🏆 Best F1  = {best_f1:.3f} at threshold = {best_thr_f1:.2f}")
-    print(f"🏆 Best F0.5 = {best_f05:.3f} at threshold = {best_thr_f05:.2f}")
+    return best_thr, best_metrics
+
+
+# ============================================================
+# PRINT FINAL SUMMARY
+# ============================================================
+
+def print_final_summary(
+    n_trials,
+    best_algo,
+    metrics_t05,
+    best_thr,
+    best_metrics
+):
+    print("\n==================== FINAL MODEL SUMMARY ====================\n")
+
+    print(f"Optuna trials used         : {n_trials}")
+    print(f"Best algorithm             : {best_algo}\n")
+
+    print("Feature Toggles:")
+    print(f"    use_temporal_features  : {USE_TEMPORAL_FEATURES}")
+    print(f"    use_scanmap_features   : {USE_SCANMAP_FEATURES}")
+    print(f"    use_particle_features  : {USE_PARTICLE_FEATURES}")
+    print(f"    use_amcl_pose          : {USE_AMCL_POSE}\n")
+
+    print("Performance @ threshold = 0.5")
+    print(f"    Precision              : {metrics_t05['precision']:.4f}")
+    print(f"    Recall                 : {metrics_t05['recall']:.4f}")
+    print(f"    F1-score               : {metrics_t05['f1']:.4f}\n")
+
+    print(f"Best Threshold (F1)        : {best_thr:.2f}")
+    print("Performance @ best threshold:")
+    print(f"    Precision              : {best_metrics['precision']:.4f}")
+    print(f"    Recall                 : {best_metrics['recall']:.4f}")
+    print(f"    F1-score               : {best_metrics['f1']:.4f}")
+
+    print("\n==============================================================\n")
 
 
 # ============================================================
@@ -352,6 +388,7 @@ def main():
     print("📘 Preparing datasets per algorithm...")
     prepared = prepare_datasets(df)
 
+    # -------------------- OPTUNA OBJECTIVE --------------------
     def objective(trial):
         algo = trial.suggest_categorical("algorithm", list(ALGORITHMS.keys()))
         data = prepared[algo]
@@ -376,7 +413,10 @@ def main():
         return f1_score(data["y_val"], y_pred)
 
     print(f"🚀 Starting Optuna search ({N_TRIALS} trials)...")
-    study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler())
+    study = optuna.create_study(
+        direction="maximize",
+        sampler=optuna.samplers.TPESampler()
+    )
     study.optimize(objective, n_trials=N_TRIALS, show_progress_bar=False)
 
     best_algo = study.best_trial.params["algorithm"]
@@ -385,6 +425,8 @@ def main():
     print(f"\n🏆 Best Algorithm: {best_algo}")
     print(f"🏆 Best Params: {best_params}")
     print(f"🏆 Best F1: {study.best_value:.4f}")
+
+    # -------------------- TRAIN FINAL MODEL --------------------
 
     data = prepared[best_algo]
     final_model = build_model(
@@ -427,18 +469,32 @@ def main():
         }
     )
 
+    # -------------------- AUTOMATIC EVALUATION --------------------
+
     print("\n📘 AUTOMATIC EVALUATION STARTED...")
-    y_true, y_proba = evaluate_model_automatically(
+    y_true, y_proba, metrics_t05 = evaluate_model_automatically(
         final_model,
         data["scaler"],
         data["feature_cols"],
         metadata={"model_dir": model_dir, "temporal_features": USE_TEMPORAL_FEATURES}
     )
 
-    print("\n📘 AUTOMATIC THRESHOLD SWEEP STARTED...")
-    sweep_thresholds(y_true, y_proba)
+    # -------------------- THRESHOLD SWEEP ----------------------
 
-    print("\n🎉 DONE — Training, Evaluation, and Threshold Sweep finished!")
+    print("\n📘 AUTOMATIC THRESHOLD SWEEP STARTED...")
+    best_thr, best_metrics = sweep_thresholds(y_true, y_proba)
+
+    # -------------------- PRINT SUMMARY ------------------------
+
+    print_final_summary(
+        n_trials=N_TRIALS,
+        best_algo=best_algo,
+        metrics_t05=metrics_t05,
+        best_thr=best_thr,
+        best_metrics=best_metrics
+    )
+
+    print("\n🎉 DONE — Training, Evaluation, and Threshold Sweep finished!\n")
 
 
 if __name__ == "__main__":
