@@ -1,3 +1,4 @@
 *.parquet
 models/
 wandb/**
+catboost_info/**

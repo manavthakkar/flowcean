@@ -16,63 +16,84 @@ from sklearn.metrics import (
     f1_score,
 )
 
+# ============================================================
+# UTILITIES
+# ============================================================
 
 def _ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
+def _save_plot(fig, out_dir: Path, filename: str) -> Dict[str, Path]:
+    """
+    Save both PNG + SVG versions of a plot, return paths.
+    """
+    _ensure_dir(out_dir)
+    png_path = out_dir / f"{filename}.png"
+    svg_path = out_dir / f"{filename}.svg"
+
+    fig.savefig(png_path, dpi=300, bbox_inches="tight")
+    fig.savefig(svg_path, format="svg", bbox_inches="tight")
+
+    plt.close(fig)
+
+    return {"png": png_path, "svg": svg_path}
+
+
+# ============================================================
+# ROC CURVE
+# ============================================================
+
 def plot_roc_curve(
     y_true: np.ndarray,
     y_proba: np.ndarray,
     out_dir: Path,
-) -> Optional[Path]:
+) -> Optional[Dict[str, Path]]:
     if y_proba is None:
         return None
 
-    _ensure_dir(out_dir)
     fpr, tpr, _ = roc_curve(y_true, y_proba)
     roc_auc = auc(fpr, tpr)
 
-    plt.figure()
-    plt.plot(fpr, tpr, label=f"ROC curve (AUC = {roc_auc:.3f})")
-    plt.plot([0, 1], [0, 1], linestyle="--")
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.title("ROC Curve")
-    plt.legend(loc="lower right")
-    out_path = out_dir / "roc_curve.png"
-    plt.tight_layout()
-    plt.savefig(out_path)
-    plt.close()
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.plot(fpr, tpr, label=f"AUC = {roc_auc:.3f}")
+    ax.plot([0, 1], [0, 1], "k--", alpha=0.6)
+    ax.set_xlabel("False Positive Rate")
+    ax.set_ylabel("True Positive Rate")
+    ax.set_title("ROC Curve")
+    ax.legend()
 
-    return out_path
+    return _save_plot(fig, out_dir, "roc_curve")
 
+
+# ============================================================
+# PRECISION–RECALL CURVE
+# ============================================================
 
 def plot_pr_curve(
     y_true: np.ndarray,
     y_proba: np.ndarray,
     out_dir: Path,
-) -> Optional[Path]:
+) -> Optional[Dict[str, Path]]:
     if y_proba is None:
         return None
 
-    _ensure_dir(out_dir)
     precision, recall, _ = precision_recall_curve(y_true, y_proba)
     ap = average_precision_score(y_true, y_proba)
 
-    plt.figure()
-    plt.plot(recall, precision, label=f"PR curve (AP = {ap:.3f})")
-    plt.xlabel("Recall")
-    plt.ylabel("Precision")
-    plt.title("Precision–Recall Curve")
-    plt.legend(loc="lower left")
-    out_path = out_dir / "pr_curve.png"
-    plt.tight_layout()
-    plt.savefig(out_path)
-    plt.close()
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.plot(recall, precision, label=f"AP = {ap:.3f}")
+    ax.set_xlabel("Recall")
+    ax.set_ylabel("Precision")
+    ax.set_title("Precision–Recall Curve")
+    ax.legend()
 
-    return out_path
+    return _save_plot(fig, out_dir, "pr_curve")
 
+
+# ============================================================
+# CONFUSION MATRICES
+# ============================================================
 
 def plot_confusion_matrices(
     y_true: np.ndarray,
@@ -86,19 +107,21 @@ def plot_confusion_matrices(
 
     paths: Dict[str, Path] = {}
 
-    # Raw confusion matrix
-    plt.figure()
-    im = plt.imshow(cm, interpolation="nearest", cmap="Blues")
-    plt.title("Confusion Matrix (Counts)")
+    # ---------------------------- COUNTS ----------------------------
+    fig, ax = plt.subplots()
+    im = ax.imshow(cm, interpolation="nearest", cmap="Blues")
+    ax.set_title("Confusion Matrix (Counts)")
     plt.colorbar(im)
     tick_marks = np.arange(len(class_names))
-    plt.xticks(tick_marks, class_names, rotation=45, ha="right")
-    plt.yticks(tick_marks, class_names)
+    ax.set_xticks(tick_marks)
+    ax.set_xticklabels(class_names, rotation=45, ha="right")
+    ax.set_yticks(tick_marks)
+    ax.set_yticklabels(class_names)
 
     thresh = cm.max() / 2.0 if cm.max() > 0 else 0.5
     for i in range(cm.shape[0]):
         for j in range(cm.shape[1]):
-            plt.text(
+            ax.text(
                 j,
                 i,
                 format(cm[i, j], "d"),
@@ -107,26 +130,27 @@ def plot_confusion_matrices(
                 color="white" if cm[i, j] > thresh else "black",
             )
 
-    plt.ylabel("True label")
-    plt.xlabel("Predicted label")
-    plt.tight_layout()
-    out_path_counts = out_dir / "confusion_matrix_counts.png"
-    plt.savefig(out_path_counts)
-    plt.close()
-    paths["confusion_matrix_counts"] = out_path_counts
+    ax.set_ylabel("True label")
+    ax.set_xlabel("Predicted label")
 
-    # Normalized confusion matrix
-    plt.figure()
-    im = plt.imshow(cm_norm, interpolation="nearest", cmap="Blues")
-    plt.title("Confusion Matrix (Normalized)")
+    out = _save_plot(fig, out_dir, "confusion_matrix_counts")
+    paths["confusion_matrix_counts_png"] = out["png"]
+    paths["confusion_matrix_counts_svg"] = out["svg"]
+
+    # --------------------------- NORMALIZED -------------------------
+    fig, ax = plt.subplots()
+    im = ax.imshow(cm_norm, interpolation="nearest", cmap="Blues")
+    ax.set_title("Confusion Matrix (Normalized)")
     plt.colorbar(im)
-    plt.xticks(tick_marks, class_names, rotation=45, ha="right")
-    plt.yticks(tick_marks, class_names)
+    ax.set_xticks(tick_marks)
+    ax.set_xticklabels(class_names, rotation=45, ha="right")
+    ax.set_yticks(tick_marks)
+    ax.set_yticklabels(class_names)
 
     thresh_norm = cm_norm.max() / 2.0 if cm_norm.max() > 0 else 0.5
     for i in range(cm_norm.shape[0]):
         for j in range(cm_norm.shape[1]):
-            plt.text(
+            ax.text(
                 j,
                 i,
                 f"{cm_norm[i, j]:.2f}",
@@ -135,46 +159,47 @@ def plot_confusion_matrices(
                 color="white" if cm_norm[i, j] > thresh_norm else "black",
             )
 
-    plt.ylabel("True label")
-    plt.xlabel("Predicted label")
-    plt.tight_layout()
-    out_path_norm = out_dir / "confusion_matrix_normalized.png"
-    plt.savefig(out_path_norm)
-    plt.close()
-    paths["confusion_matrix_normalized"] = out_path_norm
+    ax.set_ylabel("True label")
+    ax.set_xlabel("Predicted label")
+
+    out = _save_plot(fig, out_dir, "confusion_matrix_normalized")
+    paths["confusion_matrix_normalized_png"] = out["png"]
+    paths["confusion_matrix_normalized_svg"] = out["svg"]
 
     return paths
 
+
+# ============================================================
+# THRESHOLD CURVE
+# ============================================================
 
 def plot_threshold_curve(
     y_true: np.ndarray,
     y_proba: np.ndarray,
     out_dir: Path,
-) -> Optional[Path]:
+) -> Optional[Dict[str, Path]]:
     if y_proba is None:
         return None
 
-    _ensure_dir(out_dir)
     thresholds = np.linspace(0.05, 0.95, 19)
-    f1_scores = []
+    f1_scores = [
+        f1_score(y_true, (y_proba >= thr).astype(int), zero_division=0)
+        for thr in thresholds
+    ]
 
-    for thr in thresholds:
-        y_pred = (y_proba >= thr).astype(int)
-        f1_scores.append(f1_score(y_true, y_pred, zero_division=0))
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.plot(thresholds, f1_scores, marker="o")
+    ax.set_xlabel("Threshold")
+    ax.set_ylabel("F1-score")
+    ax.set_title("F1-score vs Threshold")
+    ax.grid(True)
 
-    plt.figure()
-    plt.plot(thresholds, f1_scores, marker="o")
-    plt.xlabel("Threshold")
-    plt.ylabel("F1-score")
-    plt.title("F1-score vs. Threshold")
-    plt.grid(True)
-    out_path = out_dir / "threshold_f1_curve.png"
-    plt.tight_layout()
-    plt.savefig(out_path)
-    plt.close()
+    return _save_plot(fig, out_dir, "threshold_f1_curve")
 
-    return out_path
 
+# ============================================================
+# FEATURE IMPORTANCE
+# ============================================================
 
 def plot_feature_importance(
     model,
@@ -182,18 +207,14 @@ def plot_feature_importance(
     algo: str,
     out_dir: Path,
     top_k: int = 20,
-) -> Optional[Path]:
-    """
-    Try to extract feature importances and plot top_k.
-    Returns path or None if not supported.
-    """
+) -> Optional[Dict[str, Path]]:
     importances = None
 
-    # XGBoost / LGBM / RF / ExtraTrees
+    # XGB, LGBM, RF, ExtraTrees
     if hasattr(model, "feature_importances_"):
         importances = np.asarray(model.feature_importances_)
 
-    # CatBoost (explicit API)
+    # CatBoost
     if importances is None and hasattr(model, "get_feature_importance"):
         try:
             importances = np.asarray(model.get_feature_importance())
@@ -205,24 +226,25 @@ def plot_feature_importance(
 
     _ensure_dir(out_dir)
 
-    # sort by importance
+    # Sort by importance
     indices = np.argsort(importances)[::-1][:top_k]
-    top_feats = [feature_cols[i] for i in indices]
     top_vals = importances[indices]
+    top_feats = [feature_cols[i] for i in indices]
 
-    plt.figure(figsize=(8, 0.4 * len(top_feats) + 2))
+    fig, ax = plt.subplots(figsize=(8, 0.4 * len(top_feats) + 2))
     y_pos = np.arange(len(top_feats))
-    plt.barh(y_pos, top_vals[::-1])
-    plt.yticks(y_pos, top_feats[::-1])
-    plt.xlabel("Importance")
-    plt.title(f"Top {len(top_feats)} Feature Importances ({algo})")
-    plt.tight_layout()
-    out_path = out_dir / "feature_importances.png"
-    plt.savefig(out_path)
-    plt.close()
+    ax.barh(y_pos, top_vals[::-1])
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(top_feats[::-1])
+    ax.set_xlabel("Importance")
+    ax.set_title(f"Top {len(top_feats)} Feature Importances ({algo})")
 
-    return out_path
+    return _save_plot(fig, out_dir, "feature_importances")
 
+
+# ============================================================
+# CREATE ALL PLOTS WRAPPER
+# ============================================================
 
 def create_all_plots(
     y_true: np.ndarray,
@@ -235,7 +257,7 @@ def create_all_plots(
     model_dir: Path,
 ) -> Dict[str, Path]:
     """
-    Create all relevant plots in model_dir / 'plots' and return paths.
+    Creates all plots and saves both PNG + SVG versions.
     """
     plots_dir = Path(model_dir) / "plots"
     _ensure_dir(plots_dir)
@@ -252,28 +274,32 @@ def create_all_plots(
     paths.update(cm_paths)
 
     # ROC curve
-    roc_path = plot_roc_curve(y_true, y_proba, plots_dir)
-    if roc_path is not None:
-        paths["roc_curve"] = roc_path
+    roc = plot_roc_curve(y_true, y_proba, plots_dir)
+    if roc:
+        paths["roc_curve_png"] = roc["png"]
+        paths["roc_curve_svg"] = roc["svg"]
 
     # PR curve
-    pr_path = plot_pr_curve(y_true, y_proba, plots_dir)
-    if pr_path is not None:
-        paths["pr_curve"] = pr_path
+    pr = plot_pr_curve(y_true, y_proba, plots_dir)
+    if pr:
+        paths["pr_curve_png"] = pr["png"]
+        paths["pr_curve_svg"] = pr["svg"]
 
-    # Threshold vs F1 curve
-    thr_path = plot_threshold_curve(y_true, y_proba, plots_dir)
-    if thr_path is not None:
-        paths["threshold_f1_curve"] = thr_path
+    # Threshold vs F1
+    thr = plot_threshold_curve(y_true, y_proba, plots_dir)
+    if thr:
+        paths["threshold_f1_curve_png"] = thr["png"]
+        paths["threshold_f1_curve_svg"] = thr["svg"]
 
     # Feature importance
-    fi_path = plot_feature_importance(
+    fi = plot_feature_importance(
         model=model,
         feature_cols=feature_cols,
         algo=best_algo,
         out_dir=plots_dir,
     )
-    if fi_path is not None:
-        paths["feature_importances"] = fi_path
+    if fi:
+        paths["feature_importances_png"] = fi["png"]
+        paths["feature_importances_svg"] = fi["svg"]
 
     return paths

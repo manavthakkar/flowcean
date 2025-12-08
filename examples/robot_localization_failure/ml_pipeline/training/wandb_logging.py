@@ -75,15 +75,26 @@ def log_eval_metrics_to_wandb(
     })
 
 
-def log_plots_to_wandb(
-    run,
-    plot_paths: Dict[str, Path],
-) -> None:
-    if run is None or wandb is None:
-        return
-
+def log_plots_to_wandb(run, plot_paths: Dict[str, Path]):
+    """
+    Log only PNG plots to Weights & Biases.
+    SVG files are skipped (wandb.Image cannot load vector images).
+    Keys are cleaned to remove '_png' suffix.
+    """
     for name, path in plot_paths.items():
-        run.log({f"plots/{name}": wandb.Image(str(path))})
+        path = Path(path)
+
+        # Skip any non-PNG files (SVGs)
+        if path.suffix.lower() != ".png":
+            print(f"ℹ️ Skipping SVG for W&B logging: {path}")
+            continue
+
+        # Clean the key name (remove '_png' suffix)
+        clean_key = name.replace("_png", "").replace(".png", "")
+
+        print(f"📤 Logging to W&B: plots/{clean_key}  → {path}")
+
+        run.log({f"plots/{clean_key}": wandb.Image(str(path))})
 
 
 def log_model_artifact(
