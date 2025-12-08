@@ -1,8 +1,8 @@
 import optuna
 import lightgbm as lgb
 import xgboost as xgb
+import flowcean.cli
 from catboost import CatBoostClassifier, Pool
-from datetime import datetime
 from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
 from sklearn.metrics import f1_score
 from sklearn.model_selection import train_test_split
@@ -19,14 +19,16 @@ from ml_pipeline.utils.common import (
     save_model,
 )
 
-MODEL_NAME = "best_model_optuna"
-N_TRIALS = 40
+config = flowcean.cli.initialize()
+
+MODEL_NAME = config.optuna.model_name
+N_TRIALS = config.optuna.n_trials
 
 # Global feature toggles (applied to every algorithm)
-USE_TEMPORAL_FEATURES = False
-USE_SCANMAP_FEATURES = True
-USE_PARTICLE_FEATURES = False
-USE_AMCL_POSE = False
+USE_TEMPORAL_FEATURES = config.features.use_temporal
+USE_SCANMAP_FEATURES = config.features.use_scanmap
+USE_PARTICLE_FEATURES = config.features.use_particle
+USE_AMCL_POSE = config.features.use_amcl_pose
 
 # Model-type mapping for scaler handling
 ALGORITHMS = {
@@ -371,10 +373,8 @@ def main():
     metrics = compute_metrics(data["y_val"], y_pred)
     print_metrics(metrics)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-
     save_model(
-        model_name=f"{MODEL_NAME}_{best_algo}_{timestamp}",
+        model_name=f"{MODEL_NAME}_{best_algo}",
         model=final_model,
         scaler=data["scaler"],
         feature_cols=data["feature_cols"],
