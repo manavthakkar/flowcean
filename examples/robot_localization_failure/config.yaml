@@ -1,0 +1,52 @@
+rosbag:
+  training_paths:
+    - toy_data/test_1/training_data_half/rec_20250923_135805_id_01  # test 1 - unsym map 1
+    - toy_data/test_1/training_data_half/rec_20250923_135805_id_02  # test 1 - unsym map 1
+    # - toy_data/test_1/testing_data_half/rec_20250923_142005_id_01   # test 1 - unsym map 1
+    # - toy_data/test_1/testing_data_half/rec_20250923_142005_id_02   # test 1 - unsym map 1
+    # - toy_data/test_2/data_half/rec_20250923_145058_id_01           # test 2 - sym map 2
+    # - toy_data/test_2/data_half/rec_20250923_145058_id_02           # test 2 - sym map 2
+  evaluation_paths:
+    - toy_data/test_1/testing_data_half/rec_20250923_142005_id_01     # test 1 - unsym map 1
+    - toy_data/test_1/testing_data_half/rec_20250923_142005_id_02     # test 1 - unsym map 1
+    # - toy_data/test_2/data_half/rec_20250923_153128_id_01           # test 2 - unsym map 2
+    # - toy_data/test_2/data_half/rec_20250923_153128_id_02           # test 2 - unsym map 2
+    # - toy_data/test_3/data_half/rec_20250924_105527_id_01           # test 3 - unsym map 3
+    # - toy_data/test_3/data_half/rec_20250924_105527_id_02           # test 3 - unsym map 3
+    # - toy_data/test_3/data_half/rec_20250923_162049_id_01           # test 3 - sym map 3
+    # - toy_data/test_3/data_half/rec_20250923_162049_id_02           # test 3 - sym map 3
+
+  bags: # list all rosbags available till date
+    - toy_data/test_1/training_data_half/rec_20250923_135805_id_01  # test 1 - unsym map 1
+    - toy_data/test_1/training_data_half/rec_20250923_135805_id_02  # test 1 - unsym map 1
+    - toy_data/test_1/testing_data_half/rec_20250923_142005_id_01     # test 1 - unsym map 1
+    - toy_data/test_1/testing_data_half/rec_20250923_142005_id_02     # test 1 - unsym map 1
+    # - toy_data/test_2/data_half/rec_20250923_153128_id_01           # test 2 - unsym map 2
+    # - toy_data/test_2/data_half/rec_20250923_153128_id_02           # test 2 - unsym map 2
+
+  message_paths:  
+    - ros_msgs/sensor_msgs/msg/LaserScan.msg
+    - ros_msgs/nav2_msgs/msg/Particle.msg
+    - ros_msgs/nav2_msgs/msg/ParticleCloud.msg
+
+features:
+  use_temporal: true
+  use_scanmap: true
+  use_particle: true
+  use_amcl_pose: true
+
+experiment:
+  train_maps: ["Unsym map 1", "Unsym map 2"]
+  eval_maps: ["Sym map 1"]
+  odometry: "random"
+  notes: "Test 1 baseline"
+
+
+localization:
+  position_threshold: 0.2
+  heading_threshold: 0.2
+
+optuna:
+  n_trials: 2
+  model_name: "optuna"
+
