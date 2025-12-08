@@ -241,6 +241,34 @@ def plot_feature_importance(
 
     return _save_plot(fig, out_dir, "feature_importances")
 
+# ============================================================
+# DATASET IMBALANCE PLOT
+# ============================================================
+
+def plot_dataset_imbalance(
+    y_true: np.ndarray,
+    out_dir: Path,
+) -> Dict[str, Path]:
+    """
+    Plots the dataset class imbalance: count of 0s vs 1s.
+    Saves both PNG and SVG.
+    """
+    _ensure_dir(out_dir)
+
+    counts = np.bincount(y_true)
+    labels = ["Localized (0)", "Delocalized (1)"]
+
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.bar(labels, counts, color=["#4C72B0", "#DD8452"])
+    ax.set_title("Dataset Class Distribution")
+    ax.set_ylabel("Number of Samples")
+
+    # Add text labels above bars
+    for i, v in enumerate(counts):
+        ax.text(i, v + max(counts) * 0.01, str(v), ha="center", fontsize=10)
+
+    return _save_plot(fig, out_dir, "dataset_imbalance")
+
 
 # ============================================================
 # CREATE ALL PLOTS WRAPPER
@@ -272,6 +300,11 @@ def create_all_plots(
         class_names=("Localized (0)", "Delocalized (1)"),
     )
     paths.update(cm_paths)
+
+    # Dataset imbalance
+    imbalance = plot_dataset_imbalance(y_true, plots_dir)
+    paths["dataset_imbalance_png"] = imbalance["png"]
+    paths["dataset_imbalance_svg"] = imbalance["svg"]
 
     # ROC curve
     roc = plot_roc_curve(y_true, y_proba, plots_dir)

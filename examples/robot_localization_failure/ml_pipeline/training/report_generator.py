@@ -62,6 +62,12 @@ TEMPLATE = r"""
 
 \section*{5. Plots}
 
+\subsection*{Dataset Class Imbalance}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\linewidth]{figures/dataset_imbalance.pdf}
+\end{figure}
+
 \subsection*{ROC Curve}
 \begin{figure}[H]
 \centering
