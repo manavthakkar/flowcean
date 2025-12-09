@@ -199,6 +199,7 @@ def save_model(
     feature_cols,
     metrics,
     extra_metadata: dict | None = None,
+    add_timestamp: bool = True,
 ):
     """
     Saves a complete model package into a UNIQUE timestamped folder:
@@ -232,7 +233,10 @@ def save_model(
     # -----------------------------------------
     # Create unique timestamped directory
     # -----------------------------------------
-    model_dir_name = f"{model_name}_{timestamp()}"
+    if add_timestamp:
+        model_dir_name = f"{model_name}_{timestamp()}"
+    else:
+        model_dir_name = model_name
     model_dir = MODELS / model_dir_name
     model_dir.mkdir(parents=True, exist_ok=True)
 

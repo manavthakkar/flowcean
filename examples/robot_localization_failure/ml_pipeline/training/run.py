@@ -7,6 +7,7 @@ import flowcean.cli
 import polars as pl
 import numpy as np
 import csv
+import datetime
 from ml_pipeline.training.report_generator import generate_pdf_report
 
 from catboost import CatBoostClassifier, Pool
@@ -481,6 +482,7 @@ def append_experiment_log(
 
 def main():
     # -------------------- INIT W&B --------------------
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     wandb_config = {
         "train_maps": config.experiment.train_maps,
         "eval_maps": config.experiment.eval_maps,
@@ -544,6 +546,12 @@ def main():
     print(f"🏆 Best Params: {best_params}")
     print(f"🏆 Best F1: {study.best_value:.4f}")
 
+    # ---------------- RENAME W&B RUN ----------------
+    new_run_name = f"{MODEL_NAME}_{best_algo}_{timestamp}"
+    run.name = new_run_name
+    run.config.update({"run_name": new_run_name}, allow_val_change=True)
+    print(f"✔ Renamed W&B run to: {new_run_name}")
+
     # W&B: log Optuna summary
     log_optuna_summary(
         run=run,
@@ -578,11 +586,12 @@ def main():
     print_metrics(metrics_val)
 
     model_dir = save_model(
-        model_name=f"{MODEL_NAME}_{best_algo}",
+        model_name=new_run_name,
         model=final_model,
         scaler=data["scaler"],
         feature_cols=data["feature_cols"],
         metrics=metrics_val,
+        add_timestamp=False,
         extra_metadata={
             "selected_algorithm": best_algo,
             "algorithms_considered": list(ALGORITHMS.keys()),
