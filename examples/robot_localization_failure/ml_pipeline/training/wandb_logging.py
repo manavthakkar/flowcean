@@ -50,7 +50,6 @@ def log_optuna_summary(
     run.config.update({"best_algorithm": best_algo}, allow_val_change=True)
     run.config.update({"best_params": best_params}, allow_val_change=True)
     run.log({
-        "optuna/best_f1": best_f1,
         "optuna/n_trials": n_trials,
     })
 
