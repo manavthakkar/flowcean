@@ -88,23 +88,30 @@ def prepare_features(
         "amcl_yaw",
     ]
 
-    if not use_scanmap_features:
-        cols_to_drop = [c for c in SCANMAP_FEATURES if c in df.columns]
+    def drop_feature_set(df: pl.DataFrame, feature_names: list[str], label: str) -> pl.DataFrame:
+        """Drop a feature group plus any temporal variants that may have been created."""
+        suffixes = ("_diff1", "_mean5", "_std5")
+        base_cols = [c for c in feature_names if c in df.columns]
+        temporal_cols = [
+            f"{c}{s}"
+            for c in feature_names
+            for s in suffixes
+            if f"{c}{s}" in df.columns
+        ]
+        cols_to_drop = base_cols + temporal_cols
         if cols_to_drop:
-            print(f"⚠️  Removing Scan-Map features: {cols_to_drop}")
+            print(f"⚠️  Removing {label} features: {cols_to_drop}")
             df = df.drop(cols_to_drop)
+        return df
+
+    if not use_scanmap_features:
+        df = drop_feature_set(df, SCANMAP_FEATURES, "Scan-Map")
 
     if not use_particle_features:
-        cols_to_drop = [c for c in PARTICLE_FEATURES if c in df.columns]
-        if cols_to_drop:
-            print(f"⚠️  Removing Particle features: {cols_to_drop}")
-            df = df.drop(cols_to_drop)
+        df = drop_feature_set(df, PARTICLE_FEATURES, "Particle")
 
     if not use_amcl_pose:
-        cols_to_drop = [c for c in AMCL_POSE_FEATURES if c in df.columns]
-        if cols_to_drop:
-            print(f"⚠️  Removing AMCL pose features: {cols_to_drop}")
-            df = df.drop(cols_to_drop)
+        df = drop_feature_set(df, AMCL_POSE_FEATURES, "AMCL pose")
 
     if LABEL_COL not in df.columns:
         raise ValueError(f"Label column '{LABEL_COL}' missing in dataset.")
