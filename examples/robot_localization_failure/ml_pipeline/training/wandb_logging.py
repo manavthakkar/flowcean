@@ -15,6 +15,7 @@ def init_wandb_run(
     config_obj: Any,
     run_name: str,
     config_dict: Dict[str, Any],
+    tags: Optional[list[str]] = None,
 ) -> Optional["wandb.sdk.wandb_run.Run"]:
     """
     Initialize a Weights & Biases run if wandb is available.
@@ -33,6 +34,7 @@ def init_wandb_run(
         entity=entity,
         name=run_name,
         config=config_dict,
+        tags=tags,
     )
     return run
 
