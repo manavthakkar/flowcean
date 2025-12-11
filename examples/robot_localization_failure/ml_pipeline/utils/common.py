@@ -389,8 +389,10 @@ def remove_post_reset_artifacts(
 
     drop_expr = pl.lit(False)
     if reset_times:
+        # Drop the reset row itself and the next `samples_to_skip` rows.
+        # Use a left-closed / right-open window so we do not over-drop by one.
         drop_windows = [
-            pl.col("time").is_between(t, t + window_size, closed="both")
+            pl.col("time").is_between(t, t + window_size, closed="left")
             for t in reset_times
         ]
         drop_expr = pl.any_horizontal(drop_windows)
