@@ -299,6 +299,78 @@ def predict_with_model(model, scaler, X):
     X_scaled = apply_scaler(X, scaler)
     return model.predict(X_scaled), model.predict_proba(X_scaled)[:, 1]
 
+RESET_PRE_ERROR_MIN = 0.5
+RESET_POST_ERROR_MAX = 0.1
+RESET_MIN_DROP = 0.4
+RESET_POST_WINDOW_SAMPLES = 10
+TEMPORAL_ROLLING_WINDOW = 5
+
+
+def detect_amcl_resets(df: pl.DataFrame, max_gap: float | None = None):
+    """
+    Identify AMCL reset points using existing error signals.
+
+    A reset is detected when the combined error sharply drops from a high value
+    (above RESET_PRE_ERROR_MIN) to a low value (below RESET_POST_ERROR_MAX) and
+    the drop magnitude exceeds RESET_MIN_DROP.
+    """
+    if "combined_error" not in df.columns:
+        return []
+
+    df = df.sort("time")
+    gap_expr = pl.lit(True)
+    if max_gap is not None and max_gap > 0:
+        gap_expr = (pl.col("time") - pl.col("time").shift(1)) <= max_gap
+
+    err = pl.col("combined_error")
+    reset_expr = (
+        (err.shift(1) > RESET_PRE_ERROR_MIN) &
+        (err < RESET_POST_ERROR_MAX) &
+        ((err.shift(1) - err) > RESET_MIN_DROP) &
+        gap_expr
+    )
+
+    return df.filter(reset_expr)["time"].to_list()
+
+
+def remove_post_reset_artifacts(
+    df: pl.DataFrame,
+    samples_to_skip: int = RESET_POST_WINDOW_SAMPLES,
+):
+    """
+    Drop a short window of samples immediately after each detected AMCL reset.
+
+    Returns the cleaned dataframe plus metadata about the removed window.
+    """
+    df = df.sort("time")
+    # Estimate the duration to drop using the median timestep
+    median_step = df["time"].diff().drop_nulls().median()
+    median_step = float(median_step) if median_step is not None else 0.0
+
+    max_gap = median_step * samples_to_skip if median_step > 0 else None
+    reset_times = detect_amcl_resets(df, max_gap=max_gap)
+    window_size = int(median_step * samples_to_skip) if median_step > 0 else 0
+
+    drop_expr = pl.lit(False)
+    if reset_times:
+        drop_windows = [
+            pl.col("time").is_between(t, t + window_size, closed="both")
+            for t in reset_times
+        ]
+        drop_expr = pl.any_horizontal(drop_windows)
+
+    cleaned = df.filter(~drop_expr)
+    removed_rows = df.height - cleaned.height
+
+    return cleaned, {
+        "reset_times": reset_times,
+        "median_step": median_step,
+        "window_size": window_size,
+        "window_seconds": window_size / 1e9 if window_size else 0.0,
+        "samples_to_skip": samples_to_skip,
+        "rows_removed": removed_rows,
+    }
+
 def add_temporal_features(df: pl.DataFrame) -> pl.DataFrame:
     """
     Add simple temporal / rolling features to the dataset.
@@ -309,12 +381,14 @@ def add_temporal_features(df: pl.DataFrame) -> pl.DataFrame:
       - <col>_mean5   : rolling mean over window=5
       - <col>_std5    : rolling std  over window=5
 
-    The frame is first sorted by 'time' to ensure temporal order.
+    The frame is first sorted by 'time', temporal statistics are computed,
+    and then a short post-reset window is removed to ensure rows affected by
+    AMCL resets do not remain in the dataset.
     """
     if "time" not in df.columns:
         raise ValueError("Expected a 'time' column in the dataset for temporal features.")
 
-    # Sort by time to ensure proper temporal order
+    # Sort by time
     df = df.sort("time")
 
     # Columns that must NOT be used as base features
@@ -360,6 +434,19 @@ def add_temporal_features(df: pl.DataFrame) -> pl.DataFrame:
         return df
 
     df = df.with_columns(new_cols)
+
+    # Remove post-reset windows after temporal features to ensure no temporal
+    # columns are contaminated by reset jumps. Drop enough rows to cover the
+    # largest temporal window (rolling window size).
+    post_reset_skip = max(RESET_POST_WINDOW_SAMPLES, TEMPORAL_ROLLING_WINDOW)
+    df, reset_meta = remove_post_reset_artifacts(df, samples_to_skip=post_reset_skip)
+    if reset_meta["reset_times"]:
+        print(
+            f"[add_temporal_features] Detected {len(reset_meta['reset_times'])} AMCL reset(s); "
+            f"removed {reset_meta['rows_removed']} row(s) "
+            f"({reset_meta['samples_to_skip']} samples ≈ "
+            f"{reset_meta['window_seconds']:.2f}s) after computing temporal features."
+        )
 
     print(f"[add_temporal_features] Added {len(new_cols)} new temporal feature columns.")
     # Shift/rolling ops introduce nulls in the first row; drop them so downstream
