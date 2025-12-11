@@ -16,6 +16,7 @@ def init_wandb_run(
     run_name: str,
     config_dict: Dict[str, Any],
     tags: Optional[list[str]] = None,
+    notes: Optional[str] = None,
 ) -> Optional["wandb.sdk.wandb_run.Run"]:
     """
     Initialize a Weights & Biases run if wandb is available.
@@ -35,6 +36,7 @@ def init_wandb_run(
         name=run_name,
         config=config_dict,
         tags=tags,
+        notes=notes,
     )
     return run
 

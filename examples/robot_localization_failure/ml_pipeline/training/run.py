@@ -66,6 +66,7 @@ ALGORITHMS = {
 LOG_PATH = ARTIFACTS / "experiment_log.csv"
 
 TAGS = config.experiment.tags
+NOTES = config.experiment.notes
 
 # ============================================================
 # CLASS WEIGHTS / SCALE POS WEIGHT HELPERS
@@ -502,6 +503,7 @@ def main():
         run_name=MODEL_NAME,
         config_dict=wandb_config,
         tags=TAGS,
+        notes=NOTES,
     )
 
     print("📘 Loading training dataset...")
