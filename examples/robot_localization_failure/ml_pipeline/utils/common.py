@@ -299,22 +299,35 @@ def predict_with_model(model, scaler, X):
     X_scaled = apply_scaler(X, scaler)
     return model.predict(X_scaled), model.predict_proba(X_scaled)[:, 1]
 
-RESET_PRE_ERROR_MIN = 0.5
-RESET_POST_ERROR_MAX = 0.1
-RESET_MIN_DROP = 0.4
-RESET_POST_WINDOW_SAMPLES = 10
-TEMPORAL_ROLLING_WINDOW = 5
+RESET_PRE_ERROR_MIN = 0.5      # fallback combined_error: prev must exceed this
+RESET_POST_ERROR_MAX = 0.1     # fallback combined_error: curr must be below this
+RESET_MIN_DROP = 0.4           # fallback combined_error: required drop (prev - curr)
+POSITION_PRE_ERROR_MIN = 0.5   # position_error: prev must exceed this
+POSITION_POST_ERROR_MAX = 0.1  # position_error: curr must be below this
+POSITION_MIN_DROP = 0.4        # position_error: required drop (prev - curr)
+HEADING_PRE_ERROR_MIN = 0.5    # |heading_error|: prev must exceed this
+HEADING_POST_ERROR_MAX = 0.1   # |heading_error|: curr must be below this
+HEADING_MIN_DROP = 0.4         # |heading_error|: required drop (prev - curr)
+RESET_POST_WINDOW_SAMPLES = 10 # samples to drop after each reset (scaled by median timestep)
+TEMPORAL_ROLLING_WINDOW = 5    # rolling window size; ensures we drop at least this many samples
 
 
 def detect_amcl_resets(df: pl.DataFrame, max_gap: float | None = None):
     """
     Identify AMCL reset points using existing error signals.
 
-    A reset is detected when the combined error sharply drops from a high value
-    (above RESET_PRE_ERROR_MIN) to a low value (below RESET_POST_ERROR_MAX) and
-    the drop magnitude exceeds RESET_MIN_DROP.
+    A reset is detected when either position_error or heading_error (absolute)
+    sharply drops from a high value to a low value:
+      - prev error > *_PRE_ERROR_MIN
+      - curr error < *_POST_ERROR_MAX
+      - drop magnitude > *_MIN_DROP
+    If neither position_error nor heading_error is present, combined_error is
+    used as a fallback with the RESET_* thresholds.
     """
-    if "combined_error" not in df.columns:
+    has_position = "position_error" in df.columns
+    has_heading = "heading_error" in df.columns
+    has_combined = "combined_error" in df.columns
+    if not (has_position or has_heading or has_combined):
         return []
 
     df = df.sort("time")
@@ -322,14 +335,37 @@ def detect_amcl_resets(df: pl.DataFrame, max_gap: float | None = None):
     if max_gap is not None and max_gap > 0:
         gap_expr = (pl.col("time") - pl.col("time").shift(1)) <= max_gap
 
-    err = pl.col("combined_error")
-    reset_expr = (
-        (err.shift(1) > RESET_PRE_ERROR_MIN) &
-        (err < RESET_POST_ERROR_MAX) &
-        ((err.shift(1) - err) > RESET_MIN_DROP) &
-        gap_expr
-    )
+    reset_exprs: list[pl.Expr] = []
 
+    if has_position:
+        pos = pl.col("position_error")
+        reset_exprs.append(
+            (pos.shift(1) > POSITION_PRE_ERROR_MIN) &
+            (pos < POSITION_POST_ERROR_MAX) &
+            ((pos.shift(1) - pos) > POSITION_MIN_DROP) &
+            gap_expr
+        )
+
+    if has_heading:
+        head = pl.col("heading_error").abs()
+        reset_exprs.append(
+            (head.shift(1) > HEADING_PRE_ERROR_MIN) &
+            (head < HEADING_POST_ERROR_MAX) &
+            ((head.shift(1) - head) > HEADING_MIN_DROP) &
+            gap_expr
+        )
+
+    # Fallback to combined_error only if neither position nor heading is present
+    if not reset_exprs and has_combined:
+        err = pl.col("combined_error")
+        reset_exprs.append(
+            (err.shift(1) > RESET_PRE_ERROR_MIN) &
+            (err < RESET_POST_ERROR_MAX) &
+            ((err.shift(1) - err) > RESET_MIN_DROP) &
+            gap_expr
+        )
+
+    reset_expr = pl.any_horizontal(reset_exprs)
     return df.filter(reset_expr)["time"].to_list()
 
 
