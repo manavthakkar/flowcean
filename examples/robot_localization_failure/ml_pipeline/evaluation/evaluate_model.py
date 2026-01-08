@@ -184,14 +184,14 @@ def main():
     # ---------------------------
     # Save predictions
     # ---------------------------
-    out_path = model_dir / "eval_results.parquet"
-    df_out = df.with_columns([
-        pl.Series("prediction", y_pred),
-        pl.Series("probability", y_proba if y_proba is not None else [None] * len(y_pred)),
-    ])
-    df_out.write_parquet(out_path)
+    # out_path = model_dir / "eval_results.parquet"
+    # df_out = df.with_columns([
+    #     pl.Series("prediction", y_pred),
+    #     pl.Series("probability", y_proba if y_proba is not None else [None] * len(y_pred)),
+    # ])
+    # df_out.write_parquet(out_path)
 
-    print(f"\n✔ Saved predictions → {out_path}")
+    # print(f"\n✔ Saved predictions → {out_path}")
 
 
 if __name__ == "__main__":

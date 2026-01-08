@@ -1,28 +1,130 @@
 rosbag:
   training_paths:
-    - toy_data/test_1/training_data_half/rec_20250923_135805_id_01  # test 1 - unsym map 1
-    - toy_data/test_1/training_data_half/rec_20250923_135805_id_02  # test 1 - unsym map 1
-    # - toy_data/test_1/testing_data_half/rec_20250923_142005_id_01   # test 1 - unsym map 1
-    # - toy_data/test_1/testing_data_half/rec_20250923_142005_id_02   # test 1 - unsym map 1
-    # - toy_data/test_2/data_half/rec_20250923_145058_id_01           # test 2 - sym map 2
-    # - toy_data/test_2/data_half/rec_20250923_145058_id_02           # test 2 - sym map 2
-  evaluation_paths:
-    - toy_data/test_1/testing_data_half/rec_20250923_142005_id_01     # test 1 - unsym map 1
-    - toy_data/test_1/testing_data_half/rec_20250923_142005_id_02     # test 1 - unsym map 1
-    # - toy_data/test_2/data_half/rec_20250923_153128_id_01           # test 2 - unsym map 2
-    # - toy_data/test_2/data_half/rec_20250923_153128_id_02           # test 2 - unsym map 2
-    # - toy_data/test_3/data_half/rec_20250924_105527_id_01           # test 3 - unsym map 3
-    # - toy_data/test_3/data_half/rec_20250924_105527_id_02           # test 3 - unsym map 3
-    # - toy_data/test_3/data_half/rec_20250923_162049_id_01           # test 3 - sym map 3
-    # - toy_data/test_3/data_half/rec_20250923_162049_id_02           # test 3 - sym map 3
+    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/training_data_half/rec_20250923_135805_id_01 # unsym map 1 (0.25)
+    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/training_data_half/rec_20250923_135805_id_02 # unsym map 1 (0.25)
+    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_133814_id_01 # unsym map 1 (0.29)
+    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_133814_id_02 # unsym map 1 (0.29)
+    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_141406_id_01 # unsym map 1 (0.33)
+    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_141406_id_02 # unsym map 1 (0.33)
 
-  bags: # list all rosbags available till date
-    - toy_data/test_1/training_data_half/rec_20250923_135805_id_01  # test 1 - unsym map 1
-    - toy_data/test_1/training_data_half/rec_20250923_135805_id_02  # test 1 - unsym map 1
-    - toy_data/test_1/testing_data_half/rec_20250923_142005_id_01     # test 1 - unsym map 1
-    - toy_data/test_1/testing_data_half/rec_20250923_142005_id_02     # test 1 - unsym map 1
-    # - toy_data/test_2/data_half/rec_20250923_153128_id_01           # test 2 - unsym map 2
-    # - toy_data/test_2/data_half/rec_20250923_153128_id_02           # test 2 - unsym map 2
+  evaluation_paths:
+    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_143726_id_01 # unsym map 1 (0.35)
+    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_143726_id_02 # unsym map 1 (0.35)
+
+  bags:
+    # # Test 1
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/training_data_half/rec_20250922_152613_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/training_data_half/rec_20250922_152613_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/training_data_half/rec_20250923_135805_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/training_data_half/rec_20250923_135805_id_02
+    # # # -----
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/testing_data_half/rec_20250922_155923_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/testing_data_half/rec_20250922_155923_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/testing_data_half/rec_20250923_112433_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/testing_data_half/rec_20250923_112433_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/testing_data_half/rec_20250923_142005_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/testing_data_half/rec_20250923_142005_id_02
+    # # # Test 2
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_2/data_half/rec_20250923_145058_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_2/data_half/rec_20250923_145058_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_2/data_half/rec_20250923_153128_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_2/data_half/rec_20250923_153128_id_02
+    # # # Test 3
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_3/data_half/rec_20250923_162049_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_3/data_half/rec_20250923_162049_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_3/data_half/rec_20250924_105527_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_3/data_half/rec_20250924_105527_id_02
+    # # # Test 4
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/symmetric_map_2_half/rec_20250924_150319_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/symmetric_map_2_half/rec_20250924_150319_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/symmetric_map_2_half/rec_20250924_152350_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/symmetric_map_2_half/rec_20250924_152350_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/symmetric_map_2_half/rec_20250924_154211_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/symmetric_map_2_half/rec_20250924_154211_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/symmetric_map_2_half/rec_20250924_160132_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/symmetric_map_2_half/rec_20250924_160132_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/symmetric_map_2_half/rec_20250924_161907_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/symmetric_map_2_half/rec_20250924_161907_id_02
+    # # # -----
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_131349_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_131349_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_133814_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_133814_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_135552_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_135552_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_141406_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_141406_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_143726_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_143726_id_02
+    # # # Colloseum
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_160624_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_160624_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_162654_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_162654_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_164850_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_164850_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_170825_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_170825_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/rec_20251203_150747
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/rec_20251205_161632
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/rec_20251220_143431   # colloseum 0.29
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/rec_20251220_152642   # colloseum 0.33
+    # # WGTL Data
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250821_104113_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250821_104113_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250828_102407_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250828_102407_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250827_161251_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250827_161251_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250821_151429_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250821_151429_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250821_141846_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250821_141846_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250821_132354_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250821_132354_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250822_132819_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250822_132819_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250822_135308_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250822_135308_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250822_123916_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250822_123916_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250828_105714_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250828_105714_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250828_161448_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250828_161448_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250825_100748_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250825_100748_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250825_133605_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250825_133605_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250825_135829_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250825_135829_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250829_104641_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250829_104641_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250825_161940_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250825_161940_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250825_145941_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250825_145941_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250825_153216_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250825_153216_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250826_104543_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250826_104543_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250826_095810_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250826_095810_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250826_102611_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250826_102611_id_02
+    # # Real World MoMo Data
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_12-16_38_21
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_23_54
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_27_14
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_30_12
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_33_37
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_37_16
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_45_45
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_53_15
+    # Real World Jackal Data
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/real_world_data
+    #########################
+
 
   message_paths:  
     - ros_msgs/sensor_msgs/msg/LaserScan.msg
@@ -33,14 +135,14 @@ features:
   use_temporal: true
   use_scanmap: true
   use_particle: true
-  use_amcl_pose: true
+  use_amcl_pose: false
 
 experiment:
-  train_maps: ["Unsym map 1", "Unsym map 2"]
-  eval_maps: ["Sym map 1"]
-  odometry: "random"
-  notes: "Test 1 baseline"
-
+  train_maps: ["unsym map 1"]
+  eval_maps:  ["unsym map 1"]
+  odometry: "train: 0.25, 0.29, 0.33 eval 0.35"
+  notes: "Train on 0.25, 0.29, 0.33 odom, Eval on 0.35 Same map (Test 4)"
+  tags: ["test_4", "Unsymmetric map 1"] #, "Threshold 0.4"] #, "mix"
 report:
   generate_pdf: true
 
@@ -49,6 +151,6 @@ localization:
   heading_threshold: 0.2
 
 optuna:
-  n_trials: 4
-  model_name: "optuna"
-
+  n_trials: 50
+  model_name: "test_4"
+  early_stop_f1: 0.99

@@ -1,5 +1,3 @@
-# ml_pipeline/training/train_eval_log_optuna.py
-
 import optuna
 import lightgbm as lgb
 import xgboost as xgb
@@ -400,6 +398,28 @@ def print_final_summary(
 
     print("\n==============================================================\n")
 
+    # ============================================================
+    # GOOGLE SHEETS EXPORT BLOCK
+    # ============================================================
+
+    print("\n================ GOOGLE SHEETS EXPORT ================\n")
+
+    sheets_formula = (
+        "={"
+        f"{metrics_t05['precision']:.4f}, "
+        f"{metrics_t05['recall']:.4f}, "
+        f"{metrics_t05['f1']:.4f}, "
+        f"{best_thr:.2f}, "
+        f"{best_metrics['f1']:.4f}, "
+        f"{best_metrics['recall']:.4f}, "
+        f"{best_metrics['precision']:.4f}"
+        "}"
+    )
+
+    print(sheets_formula)
+    print("\n======================================================\n")
+
+
 
 # ============================================================
 # APPEND EXPERIMENT LOG
@@ -477,6 +497,18 @@ def append_experiment_log(
             heading_threshold
         ])
 
+##########################################
+
+def stop_when_target_reached(study, trial):
+    TARGET_F1 = config.optuna.early_stop_f1
+
+    if study.best_value is not None and study.best_value >= TARGET_F1:
+        print(
+            f"\n🛑 Early stopping Optuna: "
+            f"best F1 = {study.best_value:.4f} ≥ {TARGET_F1}"
+        )
+        study.stop()
+
 
 # ============================================================
 # MAIN PIPELINE
@@ -541,7 +573,7 @@ def main():
         direction="maximize",
         sampler=optuna.samplers.TPESampler()
     )
-    study.optimize(objective, n_trials=N_TRIALS, show_progress_bar=False)
+    study.optimize(objective, n_trials=N_TRIALS, show_progress_bar=True, callbacks=[stop_when_target_reached])
 
     best_algo = study.best_trial.params["algorithm"]
     best_params = extract_algo_params(study.best_trial.params, best_algo)
