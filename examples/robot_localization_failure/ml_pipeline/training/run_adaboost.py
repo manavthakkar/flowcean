@@ -1,20 +1,26 @@
+# ml_pipeline/training/run_adaboost.py
+
 import optuna
-import lightgbm as lgb
-import xgboost as xgb
 import flowcean.cli
 import polars as pl
 import numpy as np
 import csv
 import datetime
-from ml_pipeline.training.report_generator import generate_pdf_report
 
-from catboost import CatBoostClassifier, Pool
-from pathlib import Path
-from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
-from sklearn.metrics import (
-    f1_score,
-    precision_score,
-    recall_score,
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.utils.class_weight import compute_sample_weight
+
+from ml_pipeline.training.report_generator import generate_pdf_report
+from ml_pipeline.training.evaluation_plots import create_all_plots
+from ml_pipeline.training.wandb_logging import (
+    init_wandb_run,
+    log_optuna_summary,
+    log_eval_metrics_to_wandb,
+    log_plots_to_wandb,
+    log_model_artifact,
+    finish_wandb_run,
 )
 
 from ml_pipeline.utils.paths import DATASETS, ARTIFACTS
@@ -31,16 +37,6 @@ from ml_pipeline.utils.common import (
     LABEL_COL,
 )
 
-from ml_pipeline.training.evaluation_plots import create_all_plots
-from ml_pipeline.training.wandb_logging import (
-    init_wandb_run,
-    log_optuna_summary,
-    log_eval_metrics_to_wandb,
-    log_plots_to_wandb,
-    log_model_artifact,
-    finish_wandb_run,
-)
-
 # ====================== CONFIG ==============================
 
 config = flowcean.cli.initialize()
@@ -53,225 +49,94 @@ USE_SCANMAP_FEATURES = config.features.use_scanmap
 USE_PARTICLE_FEATURES = config.features.use_particle
 USE_AMCL_POSE = config.features.use_amcl_pose
 
-ALGORITHMS = {
-    "lgbm": {"model_type": "lgbm"},
-    "rf": {"model_type": "rf"},
-    "extratrees": {"model_type": "extratrees"},
-    "catboost": {"model_type": "catboost"},
-    "xgb": {"model_type": "xgb"},
-}
-
 LOG_PATH = ARTIFACTS / "experiment_log.csv"
 
 TAGS = config.experiment.tags
 NOTES = config.experiment.notes
 
+
 # ============================================================
-# CLASS WEIGHTS / SCALE POS WEIGHT HELPERS
+# SAMPLE WEIGHT HELPERS (AdaBoost uses sample_weight)
 # ============================================================
 
-def compute_class_weights_dict(y):
-    positives = y.sum()
-    negatives = len(y) - positives
-    if positives == 0 or negatives == 0:
-        return None
-    return {0: 1.0, 1: negatives / positives}
-
-
-def compute_class_weights_list(y):
-    positives = y.sum()
-    negatives = len(y) - positives
-    if positives == 0 or negatives == 0:
-        return None
-    return [1.0, negatives / positives]
-
-
-def compute_scale_pos_weight(y):
-    positives = y.sum()
-    negatives = len(y) - positives
-    if positives == 0:
-        return 1.0
-    return negatives / positives
+def compute_balanced_sample_weights(y):
+    """Compute sample weights for balanced class handling."""
+    return compute_sample_weight(class_weight="balanced", y=y)
 
 
 # ============================================================
-# HYPERPARAMETER SPACES
+# HYPERPARAMETER SPACE (AdaBoost)
 # ============================================================
 
-def suggest_params(trial, algo):
-    pfx = f"{algo}_"
-
-    if algo == "lgbm":
-        return {
-            "n_estimators": trial.suggest_int(f"{pfx}n_estimators", 200, 900, step=50),
-            "learning_rate": trial.suggest_float(f"{pfx}learning_rate", 0.01, 0.3, log=True),
-            "num_leaves": trial.suggest_int(f"{pfx}num_leaves", 16, 256),
-            "max_depth": trial.suggest_int(f"{pfx}max_depth", -1, 16),
-            "min_child_samples": trial.suggest_int(f"{pfx}min_child_samples", 5, 50),
-            "subsample": trial.suggest_float(f"{pfx}subsample", 0.6, 1.0),
-            "colsample_bytree": trial.suggest_float(f"{pfx}colsample_bytree", 0.6, 1.0),
-            "reg_alpha": trial.suggest_float(f"{pfx}reg_alpha", 1e-3, 5.0, log=True),
-            "reg_lambda": trial.suggest_float(f"{pfx}reg_lambda", 1e-3, 10.0, log=True),
-        }
-
-    if algo == "rf":
-        return {
-            "n_estimators": trial.suggest_int(f"{pfx}n_estimators", 200, 900, step=50),
-            "max_depth": trial.suggest_int(f"{pfx}max_depth", 5, 30),
-            "min_samples_split": trial.suggest_int(f"{pfx}min_samples_split", 2, 12),
-            "min_samples_leaf": trial.suggest_int(f"{pfx}min_samples_leaf", 1, 8),
-            "max_features": trial.suggest_categorical(f"{pfx}max_features", ["sqrt", "log2", 0.5, 0.8, 1.0]),
-            "bootstrap": trial.suggest_categorical(f"{pfx}bootstrap", [True, False]),
-        }
-
-    if algo == "extratrees":
-        return {
-            "n_estimators": trial.suggest_int(f"{pfx}n_estimators", 200, 900, step=50),
-            "max_depth": trial.suggest_int(f"{pfx}max_depth", 5, 40),
-            "min_samples_split": trial.suggest_int(f"{pfx}min_samples_split", 2, 12),
-            "min_samples_leaf": trial.suggest_int(f"{pfx}min_samples_leaf", 1, 8),
-            "max_features": trial.suggest_categorical(f"{pfx}max_features", ["sqrt", "log2", 0.5, 0.8, 1.0]),
-            "bootstrap": trial.suggest_categorical(f"{pfx}bootstrap", [True, False]),
-        }
-
-    if algo == "catboost":
-        return {
-            "iterations": trial.suggest_int(f"{pfx}iterations", 300, 1200, step=100),
-            "depth": trial.suggest_int(f"{pfx}depth", 4, 10),
-            "learning_rate": trial.suggest_float(f"{pfx}learning_rate", 0.01, 0.3, log=True),
-            "l2_leaf_reg": trial.suggest_float(f"{pfx}l2_leaf_reg", 1e-3, 10.0, log=True),
-            "bagging_temperature": trial.suggest_float(f"{pfx}bagging_temperature", 0.0, 5.0),
-            "random_strength": trial.suggest_float(f"{pfx}random_strength", 0.5, 5.0),
-            "subsample": trial.suggest_float(f"{pfx}subsample", 0.6, 1.0),
-            "border_count": trial.suggest_int(f"{pfx}border_count", 32, 255),
-        }
-
-    if algo == "xgb":
-        return {
-            "n_estimators": trial.suggest_int(f"{pfx}n_estimators", 200, 900, step=50),
-            "max_depth": trial.suggest_int(f"{pfx}max_depth", 3, 10),
-            "learning_rate": trial.suggest_float(f"{pfx}learning_rate", 0.01, 0.3, log=True),
-            "subsample": trial.suggest_float(f"{pfx}subsample", 0.6, 1.0),
-            "colsample_bytree": trial.suggest_float(f"{pfx}colsample_bytree", 0.6, 1.0),
-            "min_child_weight": trial.suggest_float(f"{pfx}min_child_weight", 0.01, 10.0, log=True),
-            "gamma": trial.suggest_float(f"{pfx}gamma", 0.0, 5.0),
-            "reg_lambda": trial.suggest_float(f"{pfx}reg_lambda", 0.001, 10.0, log=True),
-            "reg_alpha": trial.suggest_float(f"{pfx}reg_alpha", 0.001, 5.0, log=True),
-        }
-
-    raise ValueError(f"Unsupported algorithm: {algo}")
+def suggest_adaboost_params(trial):
+    return {
+        "n_estimators": trial.suggest_int("n_estimators", 50, 500, step=50),
+        "learning_rate": trial.suggest_float("learning_rate", 0.01, 2.0, log=True),
+        "base_estimator_max_depth": trial.suggest_int("base_estimator_max_depth", 1, 10),
+    }
 
 
 # ============================================================
-# BUILD MODEL FROM PARAMETERS
+# BUILD MODEL (AdaBoost)
 # ============================================================
 
-def build_model(algo, params, class_weight, scale_pos_weight):
-    if algo == "lgbm":
-        return lgb.LGBMClassifier(
-            **params, objective="binary", class_weight=class_weight, random_state=42, n_jobs=-1, verbose=-1
-        )
+def build_adaboost_model(params):
+    base_max_depth = params.pop("base_estimator_max_depth", 1)
 
-    if algo == "rf":
-        return RandomForestClassifier(
-            **params, n_jobs=-1, class_weight=class_weight, random_state=42
-        )
+    base_estimator = DecisionTreeClassifier(
+        max_depth=base_max_depth,
+        random_state=42,
+    )
 
-    if algo == "extratrees":
-        return ExtraTreesClassifier(
-            **params, n_jobs=-1, class_weight=class_weight, random_state=42
-        )
-
-    if algo == "catboost":
-        return CatBoostClassifier( 
-            **params, loss_function="Logloss", eval_metric="F1",
-            class_weights=class_weight, random_seed=42, verbose=False
-        )
-
-    if algo == "xgb":
-        return xgb.XGBClassifier(
-            **params,
-            objective="binary:logistic",
-            eval_metric="logloss",
-            tree_method="hist",
-            scale_pos_weight=scale_pos_weight,
-            random_state=42
-        )
-
-    raise ValueError(f"Unsupported algorithm: {algo}")
+    return AdaBoostClassifier(
+        estimator=base_estimator,
+        **params,
+        random_state=42,
+    )
 
 
 # ============================================================
-# STRIP PREFIX
+# PREPARE DATASET (single pipeline)
 # ============================================================
 
-def extract_algo_params(all_params, algo):
-    prefix = f"{algo}_"
-    return {k.replace(prefix, ""): v for k, v in all_params.items() if k.startswith(prefix)}
+def prepare_dataset_adaboost(df: pl.DataFrame):
+    df_ada = df.clone()
 
+    if USE_TEMPORAL_FEATURES:
+        df_ada = add_temporal_features(df_ada)
 
-# ============================================================
-# PREPARE DATASETS
-# ============================================================
+    X, y, feature_cols = prepare_features(
+        df_ada,
+        use_scanmap_features=USE_SCANMAP_FEATURES,
+        use_particle_features=USE_PARTICLE_FEATURES,
+        use_amcl_pose=USE_AMCL_POSE,
+    )
 
-def prepare_datasets(df):
-    prepared = {}
+    from sklearn.model_selection import train_test_split
+    X_train, X_val, y_train, y_val = train_test_split(
+        X, y, test_size=0.2, shuffle=True, random_state=42, stratify=y
+    )
 
-    for algo, cfg in ALGORITHMS.items():
-        df_algo = df.clone()
+    scaler = fit_scaler(X_train, "adaboost")
+    X_train_scaled = apply_scaler(X_train, scaler)
+    X_val_scaled = apply_scaler(X_val, scaler)
+    X_full_scaled = apply_scaler(X, scaler)
 
-        if USE_TEMPORAL_FEATURES:
-            df_algo = add_temporal_features(df_algo)
+    sw_train = compute_balanced_sample_weights(y_train)
+    sw_full = compute_balanced_sample_weights(y)
 
-        X, y, feature_cols = prepare_features(
-            df_algo,
-            use_scanmap_features=USE_SCANMAP_FEATURES,
-            use_particle_features=USE_PARTICLE_FEATURES,
-            use_amcl_pose=USE_AMCL_POSE,
-        )
-
-        from sklearn.model_selection import train_test_split
-        X_train, X_val, y_train, y_val = train_test_split(
-            X, y, test_size=0.2, shuffle=True, random_state=42, stratify=y
-        )
-
-        scaler = fit_scaler(X_train, cfg["model_type"])
-        X_train_scaled = apply_scaler(X_train, scaler)
-        X_val_scaled = apply_scaler(X_val, scaler)
-        X_full_scaled = apply_scaler(X, scaler)
-
-        if algo == "catboost":
-            cw_train = compute_class_weights_list(y_train)
-            cw_full = compute_class_weights_list(y)
-            spw_train = None
-            spw_full = None
-        elif algo == "xgb":
-            cw_train = None
-            cw_full = None
-            spw_train = compute_scale_pos_weight(y_train)
-            spw_full = compute_scale_pos_weight(y)
-        else:
-            cw_train = compute_class_weights_dict(y_train)
-            cw_full = compute_class_weights_dict(y)
-            spw_train = None
-            spw_full = None
-
-        prepared[algo] = {
-            "X_train": X_train_scaled,
-            "X_val": X_val_scaled,
-            "X_full": X_full_scaled,
-            "y_train": y_train,
-            "y_val": y_val,
-            "y_full": y,
-            "scaler": scaler,
-            "feature_cols": feature_cols,
-            "class_weight_train": cw_train,
-            "class_weight_full": cw_full,
-            "scale_train": spw_train,
-            "scale_full": spw_full,
-        }
-
-    return prepared
+    return {
+        "X_train": X_train_scaled,
+        "X_val": X_val_scaled,
+        "X_full": X_full_scaled,
+        "y_train": y_train,
+        "y_val": y_val,
+        "y_full": y,
+        "scaler": scaler,
+        "feature_cols": feature_cols,
+        "sample_weight_train": sw_train,
+        "sample_weight_full": sw_full,
+    }
 
 
 # ============================================================
@@ -304,23 +169,17 @@ def evaluate_model_automatically(model, scaler, feature_cols, metadata):
 
     X_scaled = apply_scaler(X, scaler)
 
-    # predictions @ thr=0.5
-    if hasattr(model, "predict_proba"):
-        y_proba = model.predict_proba(X_scaled)[:, 1]
-        y_pred = (y_proba >= 0.5).astype(int)
-    else:
-        y_pred = model.predict(X_scaled)
-        y_proba = None
+    y_proba = model.predict_proba(X_scaled)[:, 1]
+    y_pred = (y_proba >= 0.5).astype(int)
 
     print("\n=== AUTOMATIC EVALUATION (threshold=0.5) ===")
     metrics_t05 = compute_metrics(y_true, y_pred)
     print_metrics(metrics_t05)
 
-    # save predictions
     out_path = metadata["model_dir"] / "eval_results.parquet"
     df_out = df.with_columns([
         pl.Series("prediction", y_pred),
-        pl.Series("probability", y_proba if y_proba is not None else [None] * len(y_pred))
+        pl.Series("probability", y_proba),
     ])
     df_out.write_parquet(out_path)
     print(f"✔ Saved eval predictions → {out_path}")
@@ -329,14 +188,24 @@ def evaluate_model_automatically(model, scaler, feature_cols, metadata):
 
 
 # ============================================================
+# OPTUNA EARLY STOPPING CALLBACK
+# ============================================================
+
+def stop_when_target_reached(study, trial):
+    TARGET_F1 = config.optuna.early_stop_f1
+
+    if study.best_value is not None and study.best_value >= TARGET_F1:
+        print(
+            f"\n🛑 Early stopping Optuna: "
+            f"best F1 = {study.best_value:.4f} ≥ {TARGET_F1}"
+        )
+        study.stop()
+
+# ============================================================
 # THRESHOLD SWEEP (RETURNS BEST THRESHOLD + METRICS)
 # ============================================================
 
 def sweep_thresholds(y_true, y_proba):
-    if y_proba is None:
-        print("⚠️ Model has no predict_proba → skipping threshold sweep.")
-        return None, None
-
     print("\n=== AUTOMATIC THRESHOLD SWEEP ===")
     print("thr\tprec\trec\tF1")
 
@@ -359,7 +228,6 @@ def sweep_thresholds(y_true, y_proba):
             best_metrics = {"precision": prec, "recall": rec, "f1": f1}
 
     print(f"\n🏆 Best F1 threshold = {best_thr:.2f}  (F1 = {best_f1:.3f})")
-
     return best_thr, best_metrics
 
 
@@ -367,17 +235,11 @@ def sweep_thresholds(y_true, y_proba):
 # PRINT FINAL SUMMARY
 # ============================================================
 
-def print_final_summary(
-    n_trials,
-    best_algo,
-    metrics_t05,
-    best_thr,
-    best_metrics
-):
+def print_final_summary(n_trials, metrics_t05, best_thr, best_metrics):
     print("\n==================== FINAL MODEL SUMMARY ====================\n")
 
     print(f"Optuna trials used         : {n_trials}")
-    print(f"Best algorithm             : {best_algo}\n")
+    print(f"Best algorithm             : adaboost\n")
 
     print("Feature Toggles:")
     print(f"    use_temporal_features  : {USE_TEMPORAL_FEATURES}")
@@ -398,10 +260,6 @@ def print_final_summary(
 
     print("\n==============================================================\n")
 
-    # ============================================================
-    # GOOGLE SHEETS EXPORT BLOCK
-    # ============================================================
-
     print("\n================ GOOGLE SHEETS EXPORT ================\n")
 
     sheets_formula = (
@@ -420,7 +278,6 @@ def print_final_summary(
     print("\n======================================================\n")
 
 
-
 # ============================================================
 # APPEND EXPERIMENT LOG
 # ============================================================
@@ -429,7 +286,6 @@ def append_experiment_log(
     model_name,
     model_dir,
     n_trials,
-    best_algo,
     metrics_t05,
     best_thr,
     best_metrics,
@@ -440,9 +296,7 @@ def append_experiment_log(
     position_threshold,
     heading_threshold
 ):
-    # Ensure folder exists
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-
     file_exists = LOG_PATH.exists()
 
     with open(LOG_PATH, "a", newline="") as f:
@@ -477,7 +331,7 @@ def append_experiment_log(
             model_name,
             str(model_dir),
             n_trials,
-            best_algo,
+            "adaboost",
             USE_TEMPORAL_FEATURES,
             USE_SCANMAP_FEATURES,
             USE_PARTICLE_FEATURES,
@@ -497,26 +351,14 @@ def append_experiment_log(
             heading_threshold
         ])
 
-##########################################
-
-def stop_when_target_reached(study, trial):
-    TARGET_F1 = config.optuna.early_stop_f1
-
-    if study.best_value is not None and study.best_value >= TARGET_F1:
-        print(
-            f"\n🛑 Early stopping Optuna: "
-            f"best F1 = {study.best_value:.4f} ≥ {TARGET_F1}"
-        )
-        study.stop()
-
 
 # ============================================================
 # MAIN PIPELINE
 # ============================================================
 
 def main():
-    # -------------------- INIT W&B --------------------
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
     wandb_config = {
         "train_maps": config.experiment.train_maps,
         "eval_maps": config.experiment.eval_maps,
@@ -529,7 +371,9 @@ def main():
         "use_particles": USE_PARTICLE_FEATURES,
         "use_amcl_pose": USE_AMCL_POSE,
         "optuna_trials": N_TRIALS,
+        "algorithm": "adaboost",
     }
+
     run = init_wandb_run(
         config_obj=config,
         run_name=MODEL_NAME,
@@ -541,84 +385,74 @@ def main():
     print("📘 Loading training dataset...")
     df = load_dataset(DATASETS / "train.parquet")
 
-    print("📘 Preparing datasets per algorithm...")
-    prepared = prepare_datasets(df)
+    print("📘 Preparing dataset (AdaBoost)...")
+    data = prepare_dataset_adaboost(df)
 
     # -------------------- OPTUNA OBJECTIVE --------------------
     def objective(trial):
-        algo = trial.suggest_categorical("algorithm", list(ALGORITHMS.keys()))
-        data = prepared[algo]
+        params = suggest_adaboost_params(trial)
+        model = build_adaboost_model(params.copy())
 
-        params = suggest_params(trial, algo)
-        model = build_model(
-            algo,
-            params,
-            class_weight=data["class_weight_train"],
-            scale_pos_weight=data["scale_train"]
+        model.fit(
+            data["X_train"],
+            data["y_train"],
+            sample_weight=data["sample_weight_train"],
         )
 
-        if algo == "catboost":
-            train_pool = Pool(data["X_train"], data["y_train"])
-            val_pool = Pool(data["X_val"], data["y_val"])
-            model.fit(train_pool, eval_set=val_pool)
-            y_pred = model.predict(val_pool)
-        else:
-            model.fit(data["X_train"], data["y_train"])
-            y_pred = model.predict(data["X_val"])
+        y_pred = model.predict(data["X_val"])
+        y_pred = np.asarray(y_pred).reshape(-1).astype(int)
 
-        return f1_score(data["y_val"], y_pred)
+        return f1_score(np.asarray(data["y_val"]).reshape(-1), y_pred, zero_division=0)
 
-    print(f"🚀 Starting Optuna search ({N_TRIALS} trials)...")
+    print(f"🚀 Starting Optuna search (AdaBoost, {N_TRIALS} trials)...")
     study = optuna.create_study(
         direction="maximize",
         sampler=optuna.samplers.TPESampler()
     )
-    study.optimize(objective, n_trials=N_TRIALS, show_progress_bar=True, callbacks=[stop_when_target_reached])
 
-    best_algo = study.best_trial.params["algorithm"]
-    best_params = extract_algo_params(study.best_trial.params, best_algo)
+    study.optimize(
+        objective,
+        n_trials=N_TRIALS,
+        show_progress_bar=False,
+        callbacks=[stop_when_target_reached],   # 👈 ADD THIS
+    )
 
-    print(f"\n🏆 Best Algorithm: {best_algo}")
+    best_params = dict(study.best_trial.params)
+
+    print("\n🏆 Best Algorithm: adaboost")
     print(f"🏆 Best Params: {best_params}")
     print(f"🏆 Best F1: {study.best_value:.4f}")
 
     # ---------------- RENAME W&B RUN ----------------
-    new_run_name = f"{MODEL_NAME}_{best_algo}_{timestamp}"
+    new_run_name = f"{MODEL_NAME}_adaboost_{timestamp}"
     run.name = new_run_name
     run.config.update({"run_name": new_run_name}, allow_val_change=True)
     print(f"✔ Renamed W&B run to: {new_run_name}")
 
-    # W&B: log Optuna summary
     log_optuna_summary(
         run=run,
-        best_algo=best_algo,
+        best_algo="adaboost",
         best_params=best_params,
         best_f1=study.best_value,
         n_trials=N_TRIALS,
     )
 
     # -------------------- TRAIN FINAL MODEL --------------------
+    final_model = build_adaboost_model(best_params.copy())
 
-    data = prepared[best_algo]
-    final_model = build_model(
-        best_algo,
-        best_params,
-        class_weight=data["class_weight_full"],
-        scale_pos_weight=data["scale_full"]
+    print("\n📘 Training best AdaBoost model on FULL training data...")
+    final_model.fit(
+        data["X_full"],
+        data["y_full"],
+        sample_weight=data["sample_weight_full"],
     )
 
-    print("\n📘 Training best model on FULL training data...")
-    if best_algo == "catboost":
-        full_pool = Pool(data["X_full"], data["y_full"])
-        final_model.fit(full_pool)
-        val_pool = Pool(data["X_val"], data["y_val"])
-        y_pred_val = final_model.predict(val_pool)
-    else:
-        final_model.fit(data["X_full"], data["y_full"])
-        y_pred_val = final_model.predict(data["X_val"])
+    # Validation metrics (same behavior as before)
+    y_pred_val = final_model.predict(data["X_val"])
+    y_pred_val = np.asarray(y_pred_val).reshape(-1).astype(int)
 
     print("\n=== VALIDATION METRICS (final model) ===")
-    metrics_val = compute_metrics(data["y_val"], y_pred_val)
+    metrics_val = compute_metrics(np.asarray(data["y_val"]).reshape(-1), y_pred_val)
     print_metrics(metrics_val)
 
     model_dir = save_model(
@@ -629,8 +463,8 @@ def main():
         metrics=metrics_val,
         add_timestamp=False,
         extra_metadata={
-            "selected_algorithm": best_algo,
-            "algorithms_considered": list(ALGORITHMS.keys()),
+            "selected_algorithm": "adaboost",
+            "algorithms_considered": ["adaboost"],
             "temporal_features": USE_TEMPORAL_FEATURES,
             "use_scanmap_features": USE_SCANMAP_FEATURES,
             "use_particle_features": USE_PARTICLE_FEATURES,
@@ -642,7 +476,6 @@ def main():
     )
 
     # -------------------- AUTOMATIC EVALUATION --------------------
-
     print("\n📘 AUTOMATIC EVALUATION STARTED...")
     y_true, y_proba, y_pred_t05, metrics_t05 = evaluate_model_automatically(
         final_model,
@@ -652,22 +485,18 @@ def main():
     )
 
     # -------------------- THRESHOLD SWEEP ----------------------
-
     print("\n📘 AUTOMATIC THRESHOLD SWEEP STARTED...")
     best_thr, best_metrics = sweep_thresholds(y_true, y_proba)
 
     # -------------------- PRINT SUMMARY ------------------------
-
     print_final_summary(
         n_trials=N_TRIALS,
-        best_algo=best_algo,
         metrics_t05=metrics_t05,
         best_thr=best_thr,
         best_metrics=best_metrics
     )
 
     # -------------------- PLOTS ------------------------
-
     plot_paths = create_all_plots(
         y_true=y_true,
         y_proba=y_proba,
@@ -675,18 +504,18 @@ def main():
         best_thr=best_thr,
         model=final_model,
         feature_cols=data["feature_cols"],
-        best_algo=best_algo,
+        best_algo="adaboost",
         model_dir=model_dir,
     )
+
     # -------------------- REPORT GENERATION ------------------------
-    # Extract only SVGs to feed into report
     svg_paths = {k: v for k, v in plot_paths.items() if str(v).endswith(".svg")}
 
     if config.report.generate_pdf:
         generate_pdf_report(
             model_dir=model_dir,
-            model_name=f"{MODEL_NAME}_{best_algo}",
-            best_algo=best_algo,
+            model_name=f"{MODEL_NAME}_adaboost",
+            best_algo="adaboost",
             n_trials=N_TRIALS,
             metrics_t05=metrics_t05,
             best_thr=best_thr,
@@ -703,8 +532,8 @@ def main():
             },
             svg_paths=svg_paths,
         )
-    # -------------------- W&B METRICS & PLOTS & ARTIFACTS ------------------------
 
+    # -------------------- W&B LOGGING ------------------------
     log_eval_metrics_to_wandb(
         run=run,
         metrics_t05=metrics_t05,
@@ -712,26 +541,21 @@ def main():
         best_metrics=best_metrics,
     )
 
-    log_plots_to_wandb(
-        run=run,
-        plot_paths=plot_paths,
-    )
+    log_plots_to_wandb(run=run, plot_paths=plot_paths)
 
     log_model_artifact(
         run=run,
         model_dir=model_dir,
-        artifact_name=f"{MODEL_NAME}_{best_algo}_artifact",
+        artifact_name=f"{MODEL_NAME}_adaboost_artifact",
     )
 
-    print("\n🎉 DONE — Training, Evaluation, Plots, and W&B logging finished!\n")
+    print("\n🎉 DONE — AdaBoost Training, Evaluation, Plots, and W&B logging finished!\n")
 
     # -------------------- APPEND EXPERIMENT LOG ----------------
-
     append_experiment_log(
-        model_name=f"{MODEL_NAME}_{best_algo}",
+        model_name=f"{MODEL_NAME}_adaboost",
         model_dir=model_dir,
         n_trials=N_TRIALS,
-        best_algo=best_algo,
         metrics_t05=metrics_t05,
         best_thr=best_thr,
         best_metrics=best_metrics,
@@ -745,7 +569,6 @@ def main():
 
     print(f"✔ Experiment log updated → {LOG_PATH}")
 
-    # -------------------- FINISH W&B ------------------------
     finish_wandb_run(run)
 
 

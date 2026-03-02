@@ -13,6 +13,7 @@ from sklearn.metrics import (
     precision_recall_curve,
     average_precision_score,
     confusion_matrix,
+    ConfusionMatrixDisplay,
     f1_score,
 )
 

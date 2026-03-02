@@ -1,0 +1,17 @@
+[crash] Crash detected in pid 2128983 thread 2128983
+[crash] Crash metadata:
+[crash]  BuildGitlabJobID = '128178599'
+[crash]  CarbSdkVersion = '180.6+release.7436.c5558fdf.gl'
+[crash]  CrashTime = 'Sat Dec 20 14:20:42 2025 GMT'
+[crash]  DriverShaderCacheWrapper = 'disabled'
+[crash]  DumpId = 'bd25bac6-42ef-4850-20e22599-ebe5eaf7'
+[crash]  LastUploadStatus = '200'
+[crash]  ProductName = 'OmniverseKit'
+[crash]  PythonTracebackStatus = ''py-spy' successfully wrote info to '/home/workstation/.local/share/ov/data/Kit/Isaac-Sim Full/4.5/bd25bac6-42ef-4850-20e22599-ebe5eaf7.py.txt''
+[crash]  RetryCount = '0'
+[crash]  StartupTime = '1766237433'
+[crash]  UploadSuccessful = '0'
+[crash]  UptimeSeconds = '3009'
+[crash]  UserStory = ''
+[crash]  UserStoryStatus = ''crashreport.gui' exited with code 127'
+[crash]  Version = '106.5.0+release.162521.d02c707b.gl'

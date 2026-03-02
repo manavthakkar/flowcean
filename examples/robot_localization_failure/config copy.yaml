@@ -1,50 +1,17 @@
 rosbag:
   training_paths:
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/training_data_half/rec_20250923_135805_id_01 # unsym map 1
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/training_data_half/rec_20250923_135805_id_02 # unsym map 1
-
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/testing_data_half/rec_20250922_155923_id_01 # warehouse
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/testing_data_half/rec_20250922_155923_id_02 # warehouse
-
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_160624_id_01 # colloseum 0.25
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_160624_id_02 # colloseum 0.25
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_162654_id_01 # colloseum 0.25
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_162654_id_02 # colloseum 0.25
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_164850_id_01 # colloseum 0.25
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_164850_id_02 # colloseum 0.25
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_170825_id_01 # colloseum 0.25
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_170825_id_02 # colloseum 0.25
-
-    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/training_data_rec_20260302_082153
-
-
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/training_data_half/rec_20250923_135805_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/training_data_half/rec_20250923_135805_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/testing_data_half/rec_20250923_142005_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/testing_data_half/rec_20250923_142005_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/testing_data_half/rec_20250923_112433_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/testing_data_half/rec_20250923_112433_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_2/data_half/rec_20250923_145058_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_2/data_half/rec_20250923_145058_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_3/data_half/rec_20250923_162049_id_01
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_3/data_half/rec_20250923_162049_id_02
   evaluation_paths:
-    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_data_rec_20260302_090634
-
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/testing_data_half/rec_20250923_142005_id_01 # unsym map 1
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/testing_data_half/rec_20250923_142005_id_02 # unsym map 1
-
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/training_data_half/rec_20250922_152613_id_01 # warehouse
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/training_data_half/rec_20250922_152613_id_02 # warehouse
-
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_33_37
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_53_15
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_12-16_38_21
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_23_54
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_27_14
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_30_12
-
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_33_37
-    # # # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_37_16 # outlier
-    # # # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_45_45 # outlier
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_53_15
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_12-16_38_21
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_23_54
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_27_14
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_30_12
-
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/jackal_real_world_data/real_world_data_id_01
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/jackal_real_world_data/real_world_data_id_02
+    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/rec_20251202_170825
 
   bags:
     # # Test 1
@@ -101,9 +68,7 @@ rosbag:
     # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_170825_id_01
     # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/data_half/rec_20251202_170825_id_02
     # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/rec_20251203_150747
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/rec_20251205_161632
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/rec_20251220_143431   # colloseum 0.29
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/rec_20251220_152642   # colloseum 0.33
+    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/colloseum/rec_20251205_161632
     # # WGTL Data
     # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250821_104113_id_01
     # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/wgtl_half_split/rec_20250821_104113_id_02
@@ -156,46 +121,21 @@ rosbag:
     # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_37_16
     # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_45_45
     # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/momo_real_world_data/rosbag2_2025_11_13-14_53_15
-    # Real World Jackal Data
-    # - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/real_world_data
-    #########################
-
 
   message_paths:  
     - ros_msgs/sensor_msgs/msg/LaserScan.msg
     - ros_msgs/nav2_msgs/msg/Particle.msg
     - ros_msgs/nav2_msgs/msg/ParticleCloud.msg
-
-features:
-  use_temporal: false
-  use_scanmap: true
-  use_particle: true
-  use_amcl_pose: false
-
-# experiment:
-#   train_maps: ["colosseum"] #["unsym map 1"]
-#   eval_maps:  ["ITL"]
-#   odometry: "0.25" 
-#   notes:  "Adaboost sim2real momo" #"Train on 0.25, 0.27, 0.29, 0.31 odom, Eval on 0.35 Same map (Test 4)"
-#   tags: ["sim2real","Adaboost"] #, "Threshold 0.4"] #, "mix"
-# report:
-#   generate_pdf: true
-
-experiment:
-  train_maps: ["unsym map 1"]
-  eval_maps:  ["unsym map 1"]
-  odometry: "[0.25, 0.25, 0.1, 0.25, 0.25, 0.1]" 
-  notes:  "Small odom drift in theta" 
-  tags: ["markus"] #, "Threshold 0.4"] #, "mix"
-report:
-  generate_pdf: true
-
-
 localization:
   position_threshold: 0.2
   heading_threshold: 0.2
-
+architecture:
+  image_size: 150
+  width_meters: 15.0
+learning:
+  batch_size: 128
+  learning_rate: 0.0001
+  epochs: 2
+  model_path: "models/robot_localization.model"
 optuna:
-  n_trials: 100
-  model_name: "small_odometry_drift"
-  early_stop_f1: 0.95
+  storage: "sqlite:///optuna.db"

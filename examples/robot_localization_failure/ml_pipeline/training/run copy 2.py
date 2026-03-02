@@ -1,3 +1,5 @@
+# ml_pipeline/training/train_eval_log_optuna.py
+
 import optuna
 import lightgbm as lgb
 import xgboost as xgb
@@ -183,7 +185,7 @@ def build_model(algo, params, class_weight, scale_pos_weight):
         )
 
     if algo == "catboost":
-        return CatBoostClassifier( 
+        return CatBoostClassifier(
             **params, loss_function="Logloss", eval_metric="F1",
             class_weights=class_weight, random_seed=42, verbose=False
         )
@@ -497,18 +499,6 @@ def append_experiment_log(
             heading_threshold
         ])
 
-##########################################
-
-def stop_when_target_reached(study, trial):
-    TARGET_F1 = config.optuna.early_stop_f1
-
-    if study.best_value is not None and study.best_value >= TARGET_F1:
-        print(
-            f"\n🛑 Early stopping Optuna: "
-            f"best F1 = {study.best_value:.4f} ≥ {TARGET_F1}"
-        )
-        study.stop()
-
 
 # ============================================================
 # MAIN PIPELINE
@@ -573,7 +563,7 @@ def main():
         direction="maximize",
         sampler=optuna.samplers.TPESampler()
     )
-    study.optimize(objective, n_trials=N_TRIALS, show_progress_bar=True, callbacks=[stop_when_target_reached])
+    study.optimize(objective, n_trials=N_TRIALS, show_progress_bar=False)
 
     best_algo = study.best_trial.params["algorithm"]
     best_params = extract_algo_params(study.best_trial.params, best_algo)
