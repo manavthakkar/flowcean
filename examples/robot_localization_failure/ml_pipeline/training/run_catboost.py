@@ -165,7 +165,7 @@ def prepare_dataset_catboost(df: pl.DataFrame):
 
 def evaluate_model_automatically(model, scaler, feature_cols, metadata):
     eval_path = DATASETS / "eval.parquet"
-    print(f"\n📘 Loading eval dataset: {eval_path}")
+    print(f"\nLoading eval dataset: {eval_path}")
     df = pl.read_parquet(eval_path).drop_nulls()
 
     use_temporal = bool(
@@ -174,16 +174,16 @@ def evaluate_model_automatically(model, scaler, feature_cols, metadata):
     )
 
     if use_temporal:
-        print("🔧 Adding temporal features for eval dataset...")
+        print("Adding temporal features for eval dataset...")
         df = add_temporal_features(df)
     else:
-        print("ℹ️ Model does NOT use temporal features.")
+        print("ℹModel does NOT use temporal features.")
 
     df = remove_leaky_columns(df)
 
     missing = [c for c in feature_cols if c not in df.columns]
     if missing:
-        raise ValueError(f"❌ Missing columns in eval dataset: {missing}")
+        raise ValueError(f"Missing columns in eval dataset: {missing}")
 
     X = df.select(feature_cols).to_numpy()
     y_true = df[LABEL_COL].to_numpy()
@@ -237,7 +237,7 @@ def sweep_thresholds(y_true, y_proba):
             best_thr = thr
             best_metrics = {"precision": prec, "recall": rec, "f1": f1}
 
-    print(f"\n🏆 Best F1 threshold = {best_thr:.2f}  (F1 = {best_f1:.3f})")
+    print(f"\nBest F1 threshold = {best_thr:.2f}  (F1 = {best_f1:.3f})")
     return best_thr, best_metrics
 
 
@@ -399,10 +399,10 @@ def main():
         notes=NOTES,
     )
 
-    print("📘 Loading training dataset...")
+    print("Loading training dataset...")
     df = load_dataset(DATASETS / "train.parquet")
 
-    print("📘 Preparing dataset (CatBoost only)...")
+    print("Preparing dataset (CatBoost only)...")
     data = prepare_dataset_catboost(df)
 
     # -------------------- OPTUNA OBJECTIVE --------------------
@@ -433,15 +433,15 @@ def main():
 
     best_params = dict(study.best_trial.params)
 
-    print("\n🏆 Best Algorithm: catboost")
-    print(f"🏆 Best Params: {best_params}")
-    print(f"🏆 Best F1: {study.best_value:.4f}")
+    print("\nBest Algorithm: catboost")
+    print(f"Best Params: {best_params}")
+    print(f"Best F1: {study.best_value:.4f}")
 
     # ---------------- RENAME W&B RUN ----------------
     new_run_name = f"{MODEL_NAME}_catboost_{timestamp}"
     run.name = new_run_name
     run.config.update({"run_name": new_run_name}, allow_val_change=True)
-    print(f"✔ Renamed W&B run to: {new_run_name}")
+    print(f"Renamed W&B run to: {new_run_name}")
 
     log_optuna_summary(
         run=run,
@@ -456,7 +456,7 @@ def main():
         best_params, class_weights=data["class_weight_full"]
     )
 
-    print("\n📘 Training best CatBoost model on FULL training data...")
+    print("\nTraining best CatBoost model on FULL training data...")
     full_pool = Pool(data["X_full"], data["y_full"])
     final_model.fit(full_pool)
 
@@ -492,7 +492,7 @@ def main():
     )
 
     # -------------------- AUTOMATIC EVALUATION --------------------
-    print("\n📘 AUTOMATIC EVALUATION STARTED...")
+    print("\nAUTOMATIC EVALUATION STARTED...")
     y_true, y_proba, y_pred_t05, metrics_t05 = evaluate_model_automatically(
         final_model,
         data["scaler"],
@@ -504,7 +504,7 @@ def main():
     )
 
     # -------------------- THRESHOLD SWEEP ----------------------
-    print("\n📘 AUTOMATIC THRESHOLD SWEEP STARTED...")
+    print("\nAUTOMATIC THRESHOLD SWEEP STARTED...")
     best_thr, best_metrics = sweep_thresholds(y_true, y_proba)
 
     # -------------------- PRINT SUMMARY ------------------------
@@ -571,7 +571,7 @@ def main():
     )
 
     print(
-        "\n🎉 DONE — CatBoost Training, Evaluation, Plots, and W&B logging finished!\n"
+        "\nDONE — CatBoost Training, Evaluation, Plots, and W&B logging finished!\n"
     )
 
     # -------------------- APPEND EXPERIMENT LOG ----------------
@@ -590,7 +590,7 @@ def main():
         heading_threshold=config.localization.heading_threshold,
     )
 
-    print(f"✔ Experiment log updated → {LOG_PATH}")
+    print(f"Experiment log updated → {LOG_PATH}")
 
     finish_wandb_run(run)
 

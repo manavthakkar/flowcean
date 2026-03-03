@@ -1,387 +1,384 @@
-# 📘 **AMCL Failure Detection — ML Pipeline Documentation**
+# ML Pipeline
 
-This repository provides a complete, modular, reproducible **machine learning pipeline** for detecting **AMCL delocalization** events using handcrafted features from:
+This README describes the complete workflow of the `ml_pipeline`, from raw ROS2 bag processing to model training, and evaluation.
 
-* **Scan–Map Statistics**
-* **Particle Cloud Statistics**
-* **AMCL & Ground-truth pose alignment**
+The pipeline consists of:
 
-The pipeline:
+1. Dataset processing
+2. Dataset building
+3. Model training
+4. Evaluation
+5. Cleaning utilities
+6. Configuration management
 
-1. **Processes ROS2 bags**
-2. **Extracts 40+ handcrafted features**
-3. **Builds train/eval datasets**
-4. **Trains ML models**
-5. **Evaluates any saved model**
-6. **Stores all results cleanly inside `artifacts/`**
-7. **Can run each step individually or automatically**
+# Dataset Processing
 
----
+## `process_bags.py`
 
-# 📂 **Directory Structure**
+### Purpose
+
+Processes raw ROS2 bag files and converts them into structured tabular datasets (`.parquet` and `.csv`).
+
+### What it does
+
+* Reads bag paths from `config.yaml → rosbag.bags`
+* Extracts configured ROS message topics
+* Applies localization thresholds:
+
+  * `position_threshold`
+  * `heading_threshold`
+* Creates labeled dataset (`is_delocalized`)
+* Saves processed output to:
 
 ```
-ml_pipeline/
-│
-├── dataset/
-│   ├── build_dataset.py      # Process all bags → create training & eval datasets
-│   ├── bag_processor.py      # Core logic for handling a single bag file
-│   ├── helpers.py            # Common utilities (yaw, timeseries unpacking)
-│
-├── training/
-│   ├── common.py             # Shared ML utilities (scaling, loading model package)
-│   ├── train_model_rf.py     # Train RandomForest classifier + save artifacts
-│
-├── evaluation/
-│   ├── evaluate_model.py     # Evaluate ANY model directory (interactive or CLI)
-│
-├── utils/
-│   ├── paths.py              # Normalized paths for datasets, models, evaluation
-│   ├── cleaning.py           # Deletes the entire artifacts directory
-│
-├── artifacts/                # Auto-created, contains datasets/models/eval outputs
-│
-├── run_all.py                # One-shot: dataset → training → evaluation
-├── clean.py                  # Shortcut to wipe artifacts/
-└── README.md                 # This file
+artifacts/datasets/processed/<bag_name>.parquet
+artifacts/datasets/processed/<bag_name>.csv
+```
+
+### Run Command
+
+```bash
+python3 -m ml_pipeline.dataset.process_bags
 ```
 
 ---
 
-# ⚙️ **Configuration File**
+## `build_experiment_dataset.py`
 
-You must place your `config.yaml` at:
+### Purpose
+
+Builds the final **train** and **evaluation** datasets from processed bag files.
+
+### What it does
+
+* Loads processed `.parquet` files
+* Concatenates them
+* Sorts by time
+* Creates:
 
 ```
-robot_localization_failure/config.yaml
+artifacts/datasets/train.parquet
+artifacts/datasets/eval.parquet
 ```
 
-Example:
+Paths are defined in:
+
+```
+config.yaml → rosbag.training_paths
+config.yaml → rosbag.evaluation_paths
+```
+
+### Run Command
+
+```bash
+python3 -m ml_pipeline.dataset.build_experiment_dataset
+```
+
+# Model Training
+
+All training scripts use:
+
+* Optuna hyperparameter search
+* Automatic evaluation
+* Threshold sweep
+* Plot generation
+* PDF report generation (optional)
+* Weights & Biases logging
+* Experiment logging (CSV)
+
+## `run.py`
+
+### Purpose
+
+Multi-algorithm training pipeline with Optuna.
+
+### Supported Algorithms
+
+* LightGBM
+* Random Forest
+* ExtraTrees
+* CatBoost
+* XGBoost
+
+Optuna selects the best-performing algorithm automatically.
+
+### What it does
+
+1. Loads `train.parquet`
+2. Applies feature toggles from `config.yaml`
+3. Performs Optuna search
+4. Trains best model on full dataset
+5. Runs automatic evaluation on `eval.parquet`
+6. Performs threshold sweep
+7. Saves:
+
+   * model.pkl
+   * scaler.pkl
+   * feature_columns.json
+   * metadata.json
+   * eval_results.parquet
+8. Generates plots
+9. Logs experiment to `experiment_log.csv`
+
+### Run Command
+
+```bash
+python3 -m ml_pipeline.training.run
+```
+
+## `run_adaboost.py`
+
+### Purpose
+
+Optuna-based training specifically for **AdaBoost**.
+
+### Key Features
+
+* Uses `DecisionTree` as base estimator
+* Handles class imbalance via:
+
+  ```
+  compute_sample_weight(class_weight="balanced")
+  ```
+* Automatic threshold sweep
+* PDF report generation
+* W&B logging
+
+### Run Command
+
+```bash
+python3 -m ml_pipeline.training.run_adaboost
+```
+
+---
+
+## `run_catboost.py`
+
+### Purpose
+
+Optuna-based training specifically for **CatBoost**.
+
+### Key Features
+
+* Native CatBoost hyperparameters
+* Uses class weights `[w0, w1]`
+* Automatic evaluation
+* Threshold sweep
+* Plot + report generation
+* W&B logging
+
+### Run Command
+
+```bash
+python3 -m ml_pipeline.training.run_catboost
+```
+
+# Model Evaluation
+
+## `evaluate_model.py`
+
+### Purpose
+
+Evaluate a trained model on the evaluation dataset.
+
+### What it does
+
+* Loads selected model from `artifacts/models/`
+* Loads `eval.parquet`
+* Applies temporal features if required
+* Applies scaling
+* Predicts probabilities
+* Applies decision threshold
+* Optional temporal smoothing
+* Prints:
+
+  * Precision
+  * Recall
+  * F1
+  * F0.5
+  * Confusion matrix
+
+### Run Commands
+
+Interactive model selection:
+
+```bash
+python3 -m ml_pipeline.evaluation.evaluate_model
+```
+
+Specify model and threshold:
+
+```bash
+python3 -m ml_pipeline.evaluation.evaluate_model --model_dir <model_dir> --threshold 0.50
+```
+
+# Cleaning Utilities
+
+## `clean_dataset.py`
+
+### Purpose
+
+Removes generated dataset files.
+
+### Run Command
+
+```bash
+python3 -m ml_pipeline.clean_dataset
+```
+
+## `clean_models.py`
+
+### Purpose
+
+Removes trained model directories from `artifacts/models`.
+
+### Run Command
+
+```bash
+python3 -m ml_pipeline.clean_models
+```
+
+# Configuration
+
+
+## `config.yaml`
+
+### Purpose
+
+Central configuration file controlling the entire pipeline.
+
+## Sections Explained
+
+### `rosbag`
+
+Defines:
+
+* `training_paths`
+* `evaluation_paths`
+* `bags`
+* `message_paths`
+
+---
+
+### `features`
+
+Controls feature engineering:
 
 ```yaml
-rosbag:
-  training_paths:
-    - toy_data/training_data_half/rec_20250923_135805_id_01
-    - toy_data/training_data_half/rec_20250923_135805_id_02
-
-  evaluation_paths:
-    - toy_data/testing_data_half/rec_20250923_142005_id_01
-    - toy_data/testing_data_half/rec_20250923_142005_id_02
-
-  message_paths:
-    - ros_msgs/sensor_msgs/msg/LaserScan.msg
-    - ros_msgs/nav2_msgs/msg/Particle.msg
-    - ros_msgs/nav2_msgs/msg/ParticleCloud.msg
-
-localization:
-  position_threshold: 0.4
-  heading_threshold: 0.4
+features:
+  use_temporal: false
+  use_scanmap: true
+  use_particle: true
+  use_amcl_pose: false
 ```
-
-This file controls **which bags to process** and the **AMCL failure criteria**.
 
 ---
 
-# 📦 **Artifacts Directory**
+### `experiment`
 
-Everything the pipeline produces is saved inside:
+Defines metadata:
 
+* train_maps
+* eval_maps
+* odometry
+* notes
+* tags
+
+Used for:
+
+* W&B logging
+* Experiment CSV log
+* PDF report
+
+---
+
+### `localization`
+
+Defines labeling thresholds:
+
+```yaml
+localization:
+  position_threshold: 0.2
+  heading_threshold: 0.2
 ```
-ml_pipeline/artifacts/
+
+These thresholds define when a sample is labeled as `is_delocalized = 1`.
+
+---
+
+### `optuna`
+
+Defines training parameters:
+
+```yaml
+optuna:
+  n_trials: 100
+  model_name: "small_odometry_drift"
+  early_stop_f1: 0.95
 ```
 
-Structure:
+---
+
+# Full Pipeline Execution Order
+
+```bash
+# 1. Process raw bags
+python3 -m ml_pipeline.dataset.process_bags
+
+# 2. Build train/eval datasets
+python3 -m ml_pipeline.dataset.build_experiment_dataset
+
+# 3. Train model
+python3 -m ml_pipeline.training.run
+# OR
+python3 -m ml_pipeline.training.run_adaboost
+python3 -m ml_pipeline.training.run_catboost
+
+# 4. Evaluate model
+python3 -m ml_pipeline.evaluation.evaluate_model
+python3 -m ml_pipeline.evaluation.evaluate_model --model_dir <model_dir> --threshold 0.50
+
+# 5. Clean if needed
+python3 -m ml_pipeline.clean_dataset
+python3 -m ml_pipeline.clean_models
+```
+
+---
+
+# Artifacts Structure
 
 ```
 artifacts/
 │
 ├── datasets/
+│   ├── processed/
 │   ├── train.parquet
 │   └── eval.parquet
 │
 ├── models/
-│   ├── random_forest_baseline/         # every training run creates its own folder
-│   │   ├── model.pkl
-│   │   ├── scaler.pkl
-│   │   └── feature_columns.json
-│   ├── rf_experiment_02/
-│   └── ...
+│   └── <model_name_timestamp>/
+│       ├── model.pkl
+│       ├── scaler.pkl
+│       ├── feature_columns.json
+│       ├── metadata.json
+│       └── eval_results.parquet
 │
-└── evaluation/
-    ├── model_name/
-    │   ├── eval_results.parquet
-    │   └── metrics.txt  (optional)
-```
-
-This ensures:
-
-* every experiment is preserved
-* model/eval artifacts never overwrite each other
-* the repository root stays clean
-
----
-
-# 🧠 **Overview of the Pipeline Components**
-
-## 🔹 1. `build_dataset.py`
-
-Processes all bags and produces:
-
-```
-artifacts/datasets/train.parquet
-artifacts/datasets/eval.parquet
-```
-
-Each file contains:
-
-* 15 Scan–Map features
-* 14 Particle cloud statistics
-* 7 AMCL pose quantities
-* 7 GT pose quantities
-* Position & heading errors
-* `is_delocalized` label
-
-A total of **40+ ML features**.
-
----
-
-## 🔹 2. `train_model_rf.py`
-
-Trains a baseline **Random Forest** classifier:
-
-* loads `train.parquet`
-* removes leakage columns
-* scales features using `StandardScaler`
-* trains RandomForest classifier
-* saves everything to:
-
-```
-artifacts/models/<model_name>/
-    model.pkl
-    scaler.pkl
-    feature_columns.json
-```
-
-Each training run creates a **new model directory**.
-
----
-
-## 🔹 3. `common.py`
-
-This file provides **shared ML utilities**:
-
-✔ `load_model_package()`
-Loads a stored model directory:
-
-* model.pkl
-* scaler.pkl
-* feature_columns.json
-
-✔ `apply_scaler()`
-Applies a stored scaler or returns raw features if none exists.
-
-✔ `timestamped_model_dir()`
-Creates a new folder inside `artifacts/models/` automatically.
-
-This is used by all training scripts to maintain clean, isolated experiment folders.
-
----
-
-## 🔹 4. `evaluate_model.py`
-
-A **model-agnostic evaluator**.
-
-### 🟢 Supports:
-
-### **1️⃣ Interactive model selection**
-
-```
-python3 -m ml_pipeline.evaluation.evaluate_model
-```
-
-Output:
-
-```
-Available models:
-[0] random_forest_2025_11_20_14_33_51
-[1] rf_experiment_bigtrees
-Select a model index:
-```
-
-### **2️⃣ Direct model selection**
-
-```
-python3 -m ml_pipeline.evaluation.evaluate_model --model_dir random_forest_2025_11_20_14_33_51
-```
-
-### It performs:
-
-* loads `eval.parquet`
-
-* loads the chosen model
-
-* scales features
-
-* predicts labels + probabilities
-
-* prints:
-
-  ✔ classification report
-  ✔ confusion matrix
-  ✔ precision, recall, F1
-  ✔ **F0.5 score (important for early detection)**
-
-* saves predictions to:
-
-```
-artifacts/models/<model_dir>/eval_results.parquet
+└── experiment_log.csv
 ```
 
 ---
 
-# 🚀 **How to Run the Pipeline**
+# Summary
 
-## **1️⃣ Build the training & evaluation datasets**
+This pipeline provides:
 
-Extracts all handcrafted features and builds 40+ column ML tables.
-
-```
-python3 -m ml_pipeline.dataset.build_dataset
-```
-
-This creates:
-
-```
-artifacts/datasets/train.parquet
-artifacts/datasets/eval.parquet
-```
-
----
-
-## **2️⃣ Train a model**
-
-Trains a Random Forest and saves artifacts.
-
-```
-python3 -m ml_pipeline.training.train_model_rf
-```
-
-This creates:
-
-```
-artifacts/models/random_forest_<timestamp>/
-```
-
----
-
-## **3️⃣ Evaluate a model**
-
-### **Option A — interactive choose model**
-
-```
-python3 -m ml_pipeline.evaluation.evaluate_model
-```
-
-### **Option B — specify model name**
-
-```
-python3 -m ml_pipeline.evaluation.evaluate_model --model_dir random_forest_2025_11_20_14_33_51
-```
-
-Outputs include:
-
-* precision, recall
-* confusion matrix
-* **F0.5 score**
-* predictions saved to:
-
-```
-artifacts/models/<model_dir>/eval_results.parquet
-```
-
----
-
-# 🧹 **Cleaning Everything**
-
-To wipe all datasets, models, and evaluation outputs:
-
-```
-python3 -m ml_pipeline.clean
-```
-
-This deletes the entire `artifacts/` directory.
-
----
-
-# 🔁 **Run the Entire Pipeline Automatically**
-
-```
-python3 -m ml_pipeline.run_all
-```
-
-Runs:
-
-```
-build_dataset → train_model → evaluate_model
-```
-
-Everything is written into `artifacts/`.
-
----
-
-# 🧬 **What the Pipeline Actually Computes**
-
-### ✔ 1. Scan–Map Statistics
-
-Geometric scan-map alignment → 15 features
-(e.g., point_distance, line_angle, ray_quality…)
-
-### ✔ 2. Particle Cloud Statistics
-
-Distribution shape → 14 features
-(center of gravity spread, cluster variance…)
-
-### ✔ 3. Pose Alignment
-
-Time-synced AMCL & ground truth
-→ computed yaw, errors, labels
-
-### ✔ 4. Final ML Table
-
-A clean, flat dataset suitable for:
-
-* Random Forest
-* XGBoost
-* LightGBM
-* Neural networks
-* Optuna hyperparameter tuning
-* Scikit-learn pipelines
-* Neural networks
-
----
-
-# 🎯 **Next Steps (Planned Modules)**
-
-You will soon add:
-
-* `train_model_xgb.py` — XGBoost
-* `train_model_lightgbm.py` — LightGBM
-* `train_model_nn.py` — small MLP
-* `evaluate_model.py` (extended) — ROC curves, PR curves
-* `compare_models.py` — automatically compare all models
-* `plot_feature_importance.py` — SHAP + RF/XGB importance
-
-These will plug into the same `common.py` utilities.
-
----
-
-# 🎉 **Conclusion**
-
-This pipeline is:
-
-* modular
-* reproducible
-* extensible
-* model-agnostic
-* easy to run
-* easy to clean
+* Reproducible dataset generation
+* Config-driven feature control
+* Automated hyperparameter optimization
+* Built-in class imbalance handling
+* Threshold optimization
+* Experiment tracking
+* Automatic plotting
+* PDF reporting
+* W&B integration
+* Clean experiment logging

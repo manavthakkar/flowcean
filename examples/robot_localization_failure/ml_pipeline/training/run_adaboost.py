@@ -145,7 +145,7 @@ def prepare_dataset_adaboost(df: pl.DataFrame):
 
 def evaluate_model_automatically(model, scaler, feature_cols, metadata):
     eval_path = DATASETS / "eval.parquet"
-    print(f"\n📘 Loading eval dataset: {eval_path}")
+    print(f"\nLoading eval dataset: {eval_path}")
     df = pl.read_parquet(eval_path).drop_nulls()
 
     use_temporal = bool(
@@ -153,16 +153,16 @@ def evaluate_model_automatically(model, scaler, feature_cols, metadata):
     )
 
     if use_temporal:
-        print("🔧 Adding temporal features for eval dataset...")
+        print("Adding temporal features for eval dataset...")
         df = add_temporal_features(df)
     else:
-        print("ℹ️ Model does NOT use temporal features.")
+        print("ℹModel does NOT use temporal features.")
 
     df = remove_leaky_columns(df)
 
     missing = [c for c in feature_cols if c not in df.columns]
     if missing:
-        raise ValueError(f"❌ Missing columns in eval dataset: {missing}")
+        raise ValueError(f"Missing columns in eval dataset: {missing}")
 
     X = df.select(feature_cols).to_numpy()
     y_true = df[LABEL_COL].to_numpy()
@@ -196,7 +196,7 @@ def stop_when_target_reached(study, trial):
 
     if study.best_value is not None and study.best_value >= TARGET_F1:
         print(
-            f"\n🛑 Early stopping Optuna: "
+            f"\nEarly stopping Optuna: "
             f"best F1 = {study.best_value:.4f} ≥ {TARGET_F1}"
         )
         study.stop()
@@ -227,7 +227,7 @@ def sweep_thresholds(y_true, y_proba):
             best_thr = thr
             best_metrics = {"precision": prec, "recall": rec, "f1": f1}
 
-    print(f"\n🏆 Best F1 threshold = {best_thr:.2f}  (F1 = {best_f1:.3f})")
+    print(f"\nBest F1 threshold = {best_thr:.2f}  (F1 = {best_f1:.3f})")
     return best_thr, best_metrics
 
 
@@ -382,10 +382,10 @@ def main():
         notes=NOTES,
     )
 
-    print("📘 Loading training dataset...")
+    print("Loading training dataset...")
     df = load_dataset(DATASETS / "train.parquet")
 
-    print("📘 Preparing dataset (AdaBoost)...")
+    print("Preparing dataset (AdaBoost)...")
     data = prepare_dataset_adaboost(df)
 
     # -------------------- OPTUNA OBJECTIVE --------------------
@@ -404,7 +404,7 @@ def main():
 
         return f1_score(np.asarray(data["y_val"]).reshape(-1), y_pred, zero_division=0)
 
-    print(f"🚀 Starting Optuna search (AdaBoost, {N_TRIALS} trials)...")
+    print(f"Starting Optuna search (AdaBoost, {N_TRIALS} trials)...")
     study = optuna.create_study(
         direction="maximize",
         sampler=optuna.samplers.TPESampler()
@@ -414,14 +414,14 @@ def main():
         objective,
         n_trials=N_TRIALS,
         show_progress_bar=False,
-        callbacks=[stop_when_target_reached],   # 👈 ADD THIS
+        callbacks=[stop_when_target_reached],
     )
 
     best_params = dict(study.best_trial.params)
 
-    print("\n🏆 Best Algorithm: adaboost")
-    print(f"🏆 Best Params: {best_params}")
-    print(f"🏆 Best F1: {study.best_value:.4f}")
+    print("\nBest Algorithm: adaboost")
+    print(f"Best Params: {best_params}")
+    print(f"Best F1: {study.best_value:.4f}")
 
     # ---------------- RENAME W&B RUN ----------------
     new_run_name = f"{MODEL_NAME}_adaboost_{timestamp}"
@@ -440,7 +440,7 @@ def main():
     # -------------------- TRAIN FINAL MODEL --------------------
     final_model = build_adaboost_model(best_params.copy())
 
-    print("\n📘 Training best AdaBoost model on FULL training data...")
+    print("\nTraining best AdaBoost model on FULL training data...")
     final_model.fit(
         data["X_full"],
         data["y_full"],
@@ -476,7 +476,7 @@ def main():
     )
 
     # -------------------- AUTOMATIC EVALUATION --------------------
-    print("\n📘 AUTOMATIC EVALUATION STARTED...")
+    print("\nAUTOMATIC EVALUATION STARTED...")
     y_true, y_proba, y_pred_t05, metrics_t05 = evaluate_model_automatically(
         final_model,
         data["scaler"],
@@ -485,7 +485,7 @@ def main():
     )
 
     # -------------------- THRESHOLD SWEEP ----------------------
-    print("\n📘 AUTOMATIC THRESHOLD SWEEP STARTED...")
+    print("\nAUTOMATIC THRESHOLD SWEEP STARTED...")
     best_thr, best_metrics = sweep_thresholds(y_true, y_proba)
 
     # -------------------- PRINT SUMMARY ------------------------
@@ -549,7 +549,7 @@ def main():
         artifact_name=f"{MODEL_NAME}_adaboost_artifact",
     )
 
-    print("\n🎉 DONE — AdaBoost Training, Evaluation, Plots, and W&B logging finished!\n")
+    print("\nDONE — AdaBoost Training, Evaluation, Plots, and W&B logging finished!\n")
 
     # -------------------- APPEND EXPERIMENT LOG ----------------
     append_experiment_log(
@@ -567,7 +567,7 @@ def main():
         heading_threshold=config.localization.heading_threshold,
     )
 
-    print(f"✔ Experiment log updated → {LOG_PATH}")
+    print(f"Experiment log updated → {LOG_PATH}")
 
     finish_wandb_run(run)
 

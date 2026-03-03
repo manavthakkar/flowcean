@@ -29,7 +29,7 @@ def process_bag(bag_path: str, config, topics):
         print(f"✔ Already processed: {parquet_path}")
         return
 
-    print(f"\n⏳ Processing bag: {bag_path}")
+    print(f"\n Processing bag: {bag_path}")
 
     df = process_single_bag(
         bag_path=bag_path,
@@ -63,11 +63,11 @@ def main():
             print(f"✖ Failed to process {bag_path}: {exc}")
 
     if failed_bags:
-        print("\n⚠️ Completed with errors:")
+        print("\n Completed with errors:")
         for bag_path, exc in failed_bags:
             print(f"- {bag_path}: {exc}")
     else:
-        print("\n🎉 Finished processing all bags!\n")
+        print("\n Finished processing all bags!\n")
 
 
 if __name__ == "__main__":

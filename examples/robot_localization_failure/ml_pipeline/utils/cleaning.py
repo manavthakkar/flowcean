@@ -4,9 +4,9 @@ from .paths import ARTIFACTS, DATASETS, MODELS
 def clean_models():
     if MODELS.exists():
         shutil.rmtree(MODELS)
-        print("✔ Deleted artifacts/models/")
+        print("Deleted artifacts/models/")
     MODELS.mkdir(parents=True, exist_ok=True)
-    print("✔ Recreated artifacts/models/")
+    print("Recreated artifacts/models/")
 
 
 def clean_dataset():
@@ -19,9 +19,9 @@ def clean_dataset():
         if path.exists():
             path.unlink()
             deleted.append(name)
-            print(f"✔ Deleted artifacts/datasets/{name}")
+            print(f"Deleted artifacts/datasets/{name}")
 
     if not deleted:
         print("No dataset files to delete in artifacts/datasets/")
     else:
-        print("✔ Finished cleaning dataset files in artifacts/datasets/")
+        print("Finished cleaning dataset files in artifacts/datasets/")

@@ -67,12 +67,12 @@ def main():
     model_dirs = [d for d in MODELS.iterdir() if d.is_dir()]
 
     if not model_dirs:
-        raise RuntimeError("❌ No model directories found in artifacts/models/")
+        raise RuntimeError("No model directories found in artifacts/models/")
 
     if args.model_dir is not None:
         candidate = MODELS / args.model_dir
         if not candidate.exists():
-            print("❌ Requested model does not exist.")
+            print("Requested model does not exist.")
             print("Available models:")
             for d in model_dirs:
                 print(" -", d.name)
@@ -87,7 +87,7 @@ def main():
             raise ValueError("Invalid selection.")
         model_dir = model_dirs[int(idx)]
 
-    print(f"\n📦 Using model: {model_dir.name}")
+    print(f"\nUsing model: {model_dir.name}")
 
     # Load model/scaler/features/metadata
     model, scaler, feature_cols, metadata = load_model_package(model_dir)
@@ -112,12 +112,12 @@ def main():
         print("🔧 Model expects TEMPORAL features → adding them to eval dataset...")
         df = add_temporal_features(df)
     else:
-        print("ℹ️ Model does NOT use temporal features.")
+        print("ℹModel does NOT use temporal features.")
 
     # Check required columns
     missing = [c for c in feature_cols if c not in df.columns]
     if missing:
-        raise ValueError(f"❌ Missing columns in eval dataset: {missing}")
+        raise ValueError(f"Missing columns in eval dataset: {missing}")
 
     X = df.select(feature_cols).to_numpy()
     y_true = df["is_delocalized"].to_numpy()
@@ -134,7 +134,7 @@ def main():
         print(f"\nUsing decision threshold: {thr:.3f}")
         y_pred = (y_proba >= thr).astype(int)
     else:
-        print("⚠️ Model has no predict_proba → falling back to predict(). Threshold ignored.")
+        print("Model has no predict_proba → falling back to predict(). Threshold ignored.")
         y_pred = model.predict(X_scaled)
         y_proba = None
 
@@ -158,7 +158,7 @@ def main():
             smoothed = smoothed_sorted[inv_order]
             y_pred = (smoothed >= 0.5).astype(int)
     elif args.smooth_window and "time" not in df.columns:
-        print("⚠️ Requested smoothing but 'time' column missing; skipping smoothing.")
+        print("Requested smoothing but 'time' column missing; skipping smoothing.")
 
     # ---------------------------
     # Metrics

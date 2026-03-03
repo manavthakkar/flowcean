@@ -20,13 +20,13 @@ def load_bag_table(bag_path: str) -> pl.DataFrame:
             f"Run process_bags.py first!"
         )
 
-    print(f"→ Loading {parquet_path}")
+    print(f"Loading {parquet_path}")
     return pl.read_parquet(parquet_path)
 
 
 def build_dataset(bag_paths, parquet_out, csv_out):
     if not bag_paths:
-        print(f"⚠ No bags provided for {parquet_out}")
+        print(f"No bags provided for {parquet_out}")
         return
 
     tables = [load_bag_table(path) for path in bag_paths]
@@ -35,8 +35,8 @@ def build_dataset(bag_paths, parquet_out, csv_out):
     df.write_parquet(parquet_out)
     df.write_csv(csv_out)
 
-    print(f"✔ Saved: {parquet_out}")
-    print(f"✔ Saved: {csv_out}")
+    print(f"Saved: {parquet_out}")
+    print(f"Saved: {csv_out}")
 
 
 def main():
@@ -59,7 +59,7 @@ def main():
         DATASETS / "eval.csv",
     )
 
-    print("\n🎉 Train/Eval dataset successfully built!\n")
+    print("\n Train/Eval dataset successfully built!\n")
 
 
 if __name__ == "__main__":
