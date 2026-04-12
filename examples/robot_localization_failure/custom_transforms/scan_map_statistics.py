@@ -231,7 +231,7 @@ class ScanMapStatistics(Transform):
 
         # Precompute poses into (time, x, y, theta)
         pose_entries = []
-        for entry in tqdm(amcl_pose_timeseries, "Precomputing poses"):
+        for entry in tqdm(amcl_pose_timeseries, "Precomputing poses", disable=True):
             pose_data = entry["value"]
             x = pose_data["pose.pose.position.x"]
             y = pose_data["pose.pose.position.y"]
@@ -248,7 +248,7 @@ class ScanMapStatistics(Transform):
         scan_points_timeseries = []  # Map-frame scan points
         scan_points_sensor_timeseries = []  # Sensor-frame scan points
         self.synced_sensor_poses = []
-        for scan in tqdm(self.scan_timeseries, "Computing scan points"):
+        for scan in tqdm(self.scan_timeseries, "Computing scan points", disable=True):
             timestamp = scan["time"]
             # Skip scans with invalid angle_increment
             if scan["value"]["angle_increment"] == 0:
@@ -381,7 +381,7 @@ class ScanMapStatistics(Transform):
         # Convert infinite lines into finite ones
         detected_lines = []
         if lines is not None:
-            for line in tqdm(lines, desc="Detecting lines"):
+            for line in tqdm(lines, desc="Detecting lines", disable=True):
                 x1, y1, x2, y2 = line.ravel()
                 detected_lines.append((x1, y1, x2, y2))
 
@@ -568,6 +568,7 @@ class ScanMapStatistics(Transform):
             tqdm(
                 scan_points_timeseries,
                 desc="Computing scan-map features",
+                disable=True,
             ),
         ):
             scan_pts = np.array(scan["value"])

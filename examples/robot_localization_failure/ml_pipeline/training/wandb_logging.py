@@ -84,6 +84,9 @@ def log_plots_to_wandb(run, plot_paths: Dict[str, Path]):
     SVG files are skipped (wandb.Image cannot load vector images).
     Keys are cleaned to remove '_png' suffix.
     """
+    if run is None:
+        return
+
     for name, path in plot_paths.items():
         path = Path(path)
 

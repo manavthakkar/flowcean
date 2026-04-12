@@ -10,6 +10,7 @@ def get_topics():
             "pose.pose.orientation.y",
             "pose.pose.orientation.z",
             "pose.pose.orientation.w",
+            "pose.covariance",  # 36-element array; [0]=σ²_x, [7]=σ²_y, [35]=σ²_θ
         ],
         "/momo/pose": [
             "pose.position.x",
@@ -34,6 +35,8 @@ def get_topics():
         ],
         # "/delocalizations": ["data"],
         "/particle_cloud": ["particles"],
+        "/imperfect_odom": ["twist.twist.linear.x", "twist.twist.angular.z"],
+        "/cmd_vel": ["linear.x", "angular.z"],
     }
 
 

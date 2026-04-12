@@ -1,15 +1,10 @@
 rosbag:
   training_paths:
-    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/training_data_half/rec_20250923_135805_id_01 # unsym map 1 (0.25)
-    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_1/training_data_half/rec_20250923_135805_id_02 # unsym map 1 (0.25)
-    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_133814_id_01 # unsym map 1 (0.29)
-    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_133814_id_02 # unsym map 1 (0.29)
-    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_141406_id_01 # unsym map 1 (0.33)
-    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_141406_id_02 # unsym map 1 (0.33)
+    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/training_data_rec_20260302_082153
+
 
   evaluation_paths:
-    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_143726_id_01 # unsym map 1 (0.35)
-    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_4/unsymmetric_map_1_half/rec_20250924_143726_id_02 # unsym map 1 (0.35)
+    - /home/workstation/ros2_ws/src/flowcean/examples/robot_localization_failure/recordings/test_data/test_data_rec_20260302_090634
 
   bags:
     # # Test 1
@@ -136,13 +131,14 @@ features:
   use_scanmap: true
   use_particle: true
   use_amcl_pose: false
+  label_col: lbl_win_02s   # Best labeling strategy (MCC=0.877). Use "is_delocalized" for original.
 
 experiment:
   train_maps: ["unsym map 1"]
   eval_maps:  ["unsym map 1"]
-  odometry: "train: 0.25, 0.29, 0.33 eval 0.35"
-  notes: "Train on 0.25, 0.29, 0.33 odom, Eval on 0.35 Same map (Test 4)"
-  tags: ["test_4", "Unsymmetric map 1"] #, "Threshold 0.4"] #, "mix"
+  odometry: "[0.25, 0.25, 0.1, 0.25, 0.25, 0.1]" 
+  notes:  "Small odom drift in theta" 
+  tags: ["markus"] 
 report:
   generate_pdf: true
 
@@ -150,7 +146,10 @@ localization:
   position_threshold: 0.2
   heading_threshold: 0.2
 
+resampling:
+  target_ratio: 3  # negatives per positive (e.g. 3 = 3:1)
+
 optuna:
   n_trials: 50
-  model_name: "test_4"
-  early_stop_f1: 0.99
+  model_name: "small_odometry_drift"
+  early_stop_f1: 1.1  # disabled — set above 1.0 so all N trials always run

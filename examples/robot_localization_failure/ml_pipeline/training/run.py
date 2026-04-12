@@ -1,3 +1,4 @@
+import gc
 import optuna
 import lightgbm as lgb
 import xgboost as xgb
@@ -52,12 +53,10 @@ USE_TEMPORAL_FEATURES = config.features.use_temporal
 USE_SCANMAP_FEATURES = config.features.use_scanmap
 USE_PARTICLE_FEATURES = config.features.use_particle
 USE_AMCL_POSE = config.features.use_amcl_pose
+LABEL_COL = getattr(config.features, "label_col", LABEL_COL)
 
 ALGORITHMS = {
     "lgbm": {"model_type": "lgbm"},
-    "rf": {"model_type": "rf"},
-    "extratrees": {"model_type": "extratrees"},
-    "catboost": {"model_type": "catboost"},
     "xgb": {"model_type": "xgb"},
 }
 
@@ -214,61 +213,62 @@ def extract_algo_params(all_params, algo):
 # PREPARE DATASETS
 # ============================================================
 
-def prepare_datasets(df):
+def prepare_datasets(df_train, df_val):
+    """
+    df_train: resampled + shuffled first 80% of the recording (temporal features
+              already added on the full dataset before this split).
+    df_val:   unmodified last 20% of the recording at its natural positive rate
+              (~2.2% for lbl_win_02s). Kept intact so Optuna sees a realistic
+              signal — not an artificially balanced set where every config scores ≥0.999.
+    """
     prepared = {}
 
     for algo, cfg in ALGORITHMS.items():
-        df_algo = df.clone()
-
-        if USE_TEMPORAL_FEATURES:
-            df_algo = add_temporal_features(df_algo)
-
-        X, y, feature_cols = prepare_features(
-            df_algo,
+        X_train, y_train, feature_cols = prepare_features(
+            df_train,
             use_scanmap_features=USE_SCANMAP_FEATURES,
             use_particle_features=USE_PARTICLE_FEATURES,
             use_amcl_pose=USE_AMCL_POSE,
+            label_col=LABEL_COL,
         )
 
-        from sklearn.model_selection import train_test_split
-        X_train, X_val, y_train, y_val = train_test_split(
-            X, y, test_size=0.2, shuffle=True, random_state=42, stratify=y
+        X_val, y_val, _ = prepare_features(
+            df_val,
+            use_scanmap_features=USE_SCANMAP_FEATURES,
+            use_particle_features=USE_PARTICLE_FEATURES,
+            use_amcl_pose=USE_AMCL_POSE,
+            label_col=LABEL_COL,
         )
 
         scaler = fit_scaler(X_train, cfg["model_type"])
         X_train_scaled = apply_scaler(X_train, scaler)
-        X_val_scaled = apply_scaler(X_val, scaler)
-        X_full_scaled = apply_scaler(X, scaler)
+        X_val_scaled   = apply_scaler(X_val,   scaler)
+        X_full_scaled  = apply_scaler(X_train, scaler)  # final model trains on same resampled set
 
-        if algo == "catboost":
-            cw_train = compute_class_weights_list(y_train)
-            cw_full = compute_class_weights_list(y)
-            spw_train = None
-            spw_full = None
-        elif algo == "xgb":
+        if algo == "xgb":
             cw_train = None
-            cw_full = None
+            cw_full  = None
             spw_train = compute_scale_pos_weight(y_train)
-            spw_full = compute_scale_pos_weight(y)
+            spw_full  = compute_scale_pos_weight(y_train)
         else:
             cw_train = compute_class_weights_dict(y_train)
-            cw_full = compute_class_weights_dict(y)
+            cw_full  = compute_class_weights_dict(y_train)
             spw_train = None
-            spw_full = None
+            spw_full  = None
 
         prepared[algo] = {
             "X_train": X_train_scaled,
-            "X_val": X_val_scaled,
-            "X_full": X_full_scaled,
+            "X_val":   X_val_scaled,
+            "X_full":  X_full_scaled,
             "y_train": y_train,
-            "y_val": y_val,
-            "y_full": y,
-            "scaler": scaler,
+            "y_val":   y_val,
+            "y_full":  y_train,
+            "scaler":       scaler,
             "feature_cols": feature_cols,
             "class_weight_train": cw_train,
-            "class_weight_full": cw_full,
+            "class_weight_full":  cw_full,
             "scale_train": spw_train,
-            "scale_full": spw_full,
+            "scale_full":  spw_full,
         }
 
     return prepared
@@ -299,10 +299,15 @@ def evaluate_model_automatically(model, scaler, feature_cols, metadata):
     if missing:
         raise ValueError(f"❌ Missing columns in eval dataset: {missing}")
 
-    X = df.select(feature_cols).to_numpy()
+    # Use float32 (halves memory vs float64) and free the polars DataFrame
+    # immediately — at 13.9M rows × 184 features this is ~10 GB.
+    X = df.select(feature_cols).to_numpy().astype(np.float32)
     y_true = df[LABEL_COL].to_numpy()
+    del df
+    gc.collect()
 
     X_scaled = apply_scaler(X, scaler)
+    del X
 
     # predictions @ thr=0.5
     if hasattr(model, "predict_proba"):
@@ -316,13 +321,14 @@ def evaluate_model_automatically(model, scaler, feature_cols, metadata):
     metrics_t05 = compute_metrics(y_true, y_pred)
     print_metrics(metrics_t05)
 
-    # save predictions
+    # save compact predictions (label + pred + proba only — not full feature matrix)
     out_path = metadata["model_dir"] / "eval_results.parquet"
-    df_out = df.with_columns([
-        pl.Series("prediction", y_pred),
-        pl.Series("probability", y_proba if y_proba is not None else [None] * len(y_pred))
-    ])
-    df_out.write_parquet(out_path)
+    proba_col = y_proba.tolist() if y_proba is not None else [None] * len(y_pred)
+    pl.DataFrame({
+        LABEL_COL:     y_true.tolist(),
+        "prediction":  y_pred.tolist(),
+        "probability": proba_col,
+    }).write_parquet(out_path)
     print(f"✔ Saved eval predictions → {out_path}")
 
     return y_true, y_proba, y_pred, metrics_t05
@@ -541,8 +547,42 @@ def main():
     print("📘 Loading training dataset...")
     df = load_dataset(DATASETS / "train.parquet")
 
+    # 1. Sort by time so temporal features reflect the actual 10 Hz sequence.
+    if "time" in df.columns:
+        df = df.sort("time")
+
+    # 2. Compute temporal features on the full dense stream BEFORE any splitting or
+    #    resampling — ensures diff1/mean5/std5 use actual 0.1 s consecutive steps.
+    if USE_TEMPORAL_FEATURES:
+        print("📘 Adding temporal features on full dataset (before split/resample)...")
+        df = add_temporal_features(df)
+
+    # 3. Temporal split: first 80% = training pool, last 20% = validation.
+    #    The validation stays at the natural positive rate (~2.2% for lbl_win_02s)
+    #    so Optuna sees a realistic signal instead of a trivially balanced set.
+    split_idx = int(len(df) * 0.6)
+    df_val   = df[split_idx:]   # last 40% — untouched
+    df_train = df[:split_idx]   # first 60% — will be resampled
+
+    pos_rate_val = float(df_val[LABEL_COL].mean())
+    print(f"  Split: {df_train.height} train rows | {df_val.height} val rows "
+          f"(val positive rate: {pos_rate_val:.3f})")
+
+    # 4. Downsample negatives in the TRAINING set only.
+    target_ratio = getattr(getattr(config, "resampling", None), "target_ratio", None)
+    if target_ratio is not None and target_ratio > 0:
+        pos_mask = df_train[LABEL_COL]
+        df_pos = df_train.filter(pos_mask)
+        df_neg = df_train.filter(~pos_mask)
+        n_neg_target = int(df_pos.height * target_ratio)
+        if n_neg_target < df_neg.height:
+            df_neg = df_neg.sample(n=n_neg_target, seed=42)
+        df_train = pl.concat([df_pos, df_neg]).sample(fraction=1.0, shuffle=True, seed=42)
+        print(f"  ↳ Resampled train: {df_pos.height} pos + {df_neg.height} neg "
+              f"(ratio {target_ratio}:1)")
+
     print("📘 Preparing datasets per algorithm...")
-    prepared = prepare_datasets(df)
+    prepared = prepare_datasets(df_train, df_val)
 
     # -------------------- OPTUNA OBJECTIVE --------------------
     def objective(trial):
@@ -566,7 +606,8 @@ def main():
             model.fit(data["X_train"], data["y_train"])
             y_pred = model.predict(data["X_val"])
 
-        return f1_score(data["y_val"], y_pred)
+        from sklearn.metrics import matthews_corrcoef
+        return matthews_corrcoef(data["y_val"], y_pred)
 
     print(f"🚀 Starting Optuna search ({N_TRIALS} trials)...")
     study = optuna.create_study(
@@ -584,9 +625,10 @@ def main():
 
     # ---------------- RENAME W&B RUN ----------------
     new_run_name = f"{MODEL_NAME}_{best_algo}_{timestamp}"
-    run.name = new_run_name
-    run.config.update({"run_name": new_run_name}, allow_val_change=True)
-    print(f"✔ Renamed W&B run to: {new_run_name}")
+    if run is not None:
+        run.name = new_run_name
+        run.config.update({"run_name": new_run_name}, allow_val_change=True)
+        print(f"✔ Renamed W&B run to: {new_run_name}")
 
     # W&B: log Optuna summary
     log_optuna_summary(
@@ -640,6 +682,11 @@ def main():
             "n_trials": N_TRIALS,
         }
     )
+
+    # Free training data before loading the large eval dataset to avoid OOM.
+    # prepared holds multiple copies of the feature matrix; del + gc frees them.
+    del df, df_train, df_val, prepared
+    gc.collect()
 
     # -------------------- AUTOMATIC EVALUATION --------------------
 

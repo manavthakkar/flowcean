@@ -55,12 +55,26 @@ def prepare_features(
     use_scanmap_features: bool = True,
     use_particle_features: bool = True,
     use_amcl_pose: bool = False,
+    use_amcl_cov: bool = True,
+    use_odom_vel: bool = True,
+    use_cmd_vel: bool = True,
+    label_col: str = LABEL_COL,
 ):
     """
     Removes leakage columns, extracts feature matrix X and label y,
     ensures consistent column order.
+
+    All label columns (is_delocalized and lbl_* columns) are dropped from X
+    except the one specified by ``label_col``, which becomes y.
     """
     df = remove_leaky_columns(df)
+
+    # Drop non-target label columns (is_delocalized and all lbl_* variants)
+    all_label_cols = [c for c in df.columns
+                      if c == "is_delocalized" or c.startswith("lbl_")]
+    non_target_labels = [c for c in all_label_cols if c != label_col]
+    if non_target_labels:
+        df = df.drop(non_target_labels)
 
     # Remove Scan-Map features
     SCANMAP_FEATURES = [
@@ -88,6 +102,10 @@ def prepare_features(
         "amcl_yaw",
     ]
 
+    AMCL_COV_FEATURES = ["amcl_cov_x", "amcl_cov_y", "amcl_cov_yaw"]
+    ODOM_FEATURES = ["odom_linear_x", "odom_angular_z"]
+    CMD_VEL_FEATURES = ["cmd_linear_x", "cmd_angular_z"]
+
     def drop_feature_set(df: pl.DataFrame, feature_names: list[str], label: str) -> pl.DataFrame:
         """Drop a feature group plus any temporal variants that may have been created."""
         suffixes = ("_diff1", "_mean5", "_std5")
@@ -113,11 +131,20 @@ def prepare_features(
     if not use_amcl_pose:
         df = drop_feature_set(df, AMCL_POSE_FEATURES, "AMCL pose")
 
-    if LABEL_COL not in df.columns:
-        raise ValueError(f"Label column '{LABEL_COL}' missing in dataset.")
+    if not use_amcl_cov:
+        df = drop_feature_set(df, AMCL_COV_FEATURES, "AMCL covariance")
 
-    y = df[LABEL_COL].to_numpy()
-    X_df = df.drop([LABEL_COL])
+    if not use_odom_vel:
+        df = drop_feature_set(df, ODOM_FEATURES, "Odometry velocity")
+
+    if not use_cmd_vel:
+        df = drop_feature_set(df, CMD_VEL_FEATURES, "Commanded velocity")
+
+    if label_col not in df.columns:
+        raise ValueError(f"Label column '{label_col}' missing in dataset.")
+
+    y = df[label_col].to_numpy()
+    X_df = df.drop([label_col])
 
     feature_cols = X_df.columns
     X = X_df.to_numpy()
@@ -439,14 +466,16 @@ def add_temporal_features(df: pl.DataFrame) -> pl.DataFrame:
         "combined_error",
     }
 
-    # Select numeric columns that are not excluded
+    # Select numeric columns that are not excluded (also skip lbl_* label columns)
     numeric_types = (pl.Float32, pl.Float64, pl.Int32, pl.Int64)
     schema = df.schema
 
     base_features: list[str] = [
         name
         for name, dtype in schema.items()
-        if name not in exclude_cols and isinstance(dtype, numeric_types)
+        if name not in exclude_cols
+        and not name.startswith("lbl_")
+        and isinstance(dtype, numeric_types)
     ]
 
     print(f"[add_temporal_features] Base features ({len(base_features)}): {base_features}")

@@ -49,6 +49,7 @@ class ParticleCloudStatistics(Transform):
         for i in tqdm(
             range(number_of_messages),
             desc="Processing particle cloud messages",
+            disable=True,
         ):
             message_dictionary = particle_cloud[i]
 
@@ -533,83 +534,85 @@ class ParticleCloudStatistics(Transform):
         Returns:
             dict: A dictionary containing all extracted features.
         """
-        features = {}
+        # ── extract positions once ────────────────────────────────────────────
+        positions = np.array(
+            [
+                (p["pose"]["position"]["x"], p["pose"]["position"]["y"])
+                for p in list_of_particles
+            ],
+            dtype=np.float64,
+        )
 
-        max_distance, furthest_particle = self.cog_max_dist(list_of_particles)
-        features["cog_max_distance"] = max_distance
-
-        features["cog_mean_dist"] = self.cog_mean_dist(list_of_particles)
-
-        features["cog_mean_absolute_deviation"] = (
-            self.cog_mean_absolute_deviation(
-                list_of_particles,
+        # ── COG (weighted mean) — compute once ────────────────────────────────
+        total_weight = sum(p["weight"] for p in list_of_particles)
+        if total_weight > 0:
+            weights = np.array(
+                [p["weight"] for p in list_of_particles], dtype=np.float64
             )
+            cog = (weights @ positions) / total_weight
+        else:
+            cog = np.zeros(2)
+        cog_dists = np.linalg.norm(positions - cog, axis=1)
+
+        # ── COG mean (unweighted) — compute once ──────────────────────────────
+        mean_pos = positions.mean(axis=0)
+        mean_dists = np.linalg.norm(positions - mean_pos, axis=1)
+
+        # ── smallest enclosing circle — compute once ──────────────────────────
+        points_list = [(float(p[0]), float(p[1])) for p in positions]
+        circle_center, circle_radius = self.smallest_enclosing_circle(
+            points_list
+        )
+        cx, cy = circle_center
+        circle_dists = np.linalg.norm(
+            positions - np.array([cx, cy]), axis=1
         )
 
-        features["cog_median"] = self.cog_median(list_of_particles)
+        # ── DBSCAN — run once ─────────────────────────────────────────────────
+        dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+        labels = dbscan.fit_predict(positions)
+        non_noise = labels[labels != -1]
+        if len(non_noise) > 0:
+            unique_labels, counts = np.unique(non_noise, return_counts=True)
+            main_label = unique_labels[np.argmax(counts)]
+            main_pts = positions[labels == main_label]
+            n_clusters = int(len(unique_labels))
+            var_x = float(np.var(main_pts[:, 0]))
+            var_y = float(np.var(main_pts[:, 1]))
+        else:
+            n_clusters = 0
+            var_x = var_y = 0.0
 
-        features["cog_median_absolute_deviation"] = (
-            self.cog_median_absolute_deviation(
-                list_of_particles,
-            )
-        )
+        # ── assemble features ─────────────────────────────────────────────────
+        def _mad(arr: np.ndarray) -> float:
+            return float(np.mean(np.abs(arr - arr.mean())))
 
-        min_distance, closest_particle = self.cog_min_dist(list_of_particles)
-        features["cog_min_distance"] = min_distance
+        def _median_ad(arr: np.ndarray) -> float:
+            return float(np.median(np.abs(arr - np.median(arr))))
 
-        features["cog_standard_deviation"] = self.cog_standard_deviation(
-            list_of_particles,
-        )
-
-        points = [
-            (
-                particle["pose"]["position"]["x"],
-                particle["pose"]["position"]["y"],
-            )
-            for particle in list_of_particles
-        ]
-        circle = self.smallest_enclosing_circle(points)
-        features["circle_radius"] = circle[1]
-
-        features["circle_mean"] = self.circle_mean(list_of_particles)
-
-        features["circle_mean_absolute_deviation"] = (
-            self.circle_mean_absolute_deviation(list_of_particles)
-        )
-
-        features["circle_median"] = self.circle_median(list_of_particles)
-
-        features["circle_median_absolute_deviation"] = (
-            self.circle_median_absolute_deviation(list_of_particles)
-        )
-
-        features["circle_min_distance"] = self.circle_min_dist(
-            list_of_particles,
-        )
-
-        features["circle_standard_deviation"] = self.circle_std_deviation(
-            list_of_particles,
-        )
-
-        features["num_clusters"] = self.count_clusters(
-            list_of_particles,
-            eps,
-            min_samples,
-        )
-
-        features["main_cluster_variance_x"] = self.main_cluster_variance_x(
-            list_of_particles,
-            eps,
-            min_samples,
-        )
-
-        features["main_cluster_variance_y"] = self.main_cluster_variance_y(
-            list_of_particles,
-            eps,
-            min_samples,
-        )
-
-        return features
+        return {
+            # COG (weighted) features
+            "cog_max_distance":            float(cog_dists.max()),
+            "cog_min_distance":            float(cog_dists.min()),
+            # COG mean (unweighted) features
+            "cog_mean_dist":               float(mean_dists.mean()),
+            "cog_mean_absolute_deviation": _mad(mean_dists),
+            "cog_median":                  float(np.median(mean_dists)),
+            "cog_median_absolute_deviation": _median_ad(mean_dists),
+            "cog_standard_deviation":      float(mean_dists.std()),
+            # Circle features
+            "circle_radius":               float(circle_radius),
+            "circle_mean":                 float(circle_dists.mean()),
+            "circle_mean_absolute_deviation": _mad(circle_dists),
+            "circle_median":               float(np.median(circle_dists)),
+            "circle_median_absolute_deviation": _median_ad(circle_dists),
+            "circle_min_distance":         float(circle_dists.min()),
+            "circle_standard_deviation":   float(circle_dists.std()),
+            # Cluster features
+            "num_clusters":                n_clusters,
+            "main_cluster_variance_x":     var_x,
+            "main_cluster_variance_y":     var_y,
+        }
 
     ############### Helper Functions ################
 
