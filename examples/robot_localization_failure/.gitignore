@@ -1,4 +1,16 @@
 *.parquet
 models/
 wandb/**
-catboost_info/**
+catboost_info/*
+recordings/jackal_real_world_data/
+recordings/momo_real_world_data/
+recordings/real_world_data/
+recordings/test_data/
+recordings/wgtl_half_split/
+tb_lightning_logs/
+"\340\017\034\003"
+eval_cache
+exported_dataset
+learning_cache
+results
+simulation
